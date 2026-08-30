@@ -7,7 +7,6 @@ import {
   Package,
   BarChart3,
   ClipboardList,
-  LogOut,
   Key,
   Warehouse,
   FileText,

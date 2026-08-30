@@ -399,7 +399,7 @@ const AuditTrailPage: React.FC = () => {
           data={loading ? [] : logs}
           itemsPerPage={filters.per_page || 1000}
           onRefresh={fetchLogs}
-          showSearch={false}
+          hideSearch={true}
         />
       </div>
     </div>

@@ -187,7 +187,7 @@ const OTPPage: React.FC = () => {
       render: (item: OTP) => {
         if (item.is_used) return <Badge tone="green" className="text-[10px] md:text-xs">{t('used')}</Badge>;
         if (new Date(item.expires_at) < new Date()) return <Badge tone="red" className="text-[10px] md:text-xs">{t('expired')}</Badge>;
-        return <Badge tone="yellow" className="text-[10px] md:text-xs">{t('unused')}</Badge>;
+        return <Badge tone="orange" className="text-[10px] md:text-xs">{t('unused')}</Badge>;
       },
     },
     {
@@ -320,7 +320,7 @@ const OTPPage: React.FC = () => {
           data={loading ? [] : logs}
           itemsPerPage={filters.per_page || 1000}
           onRefresh={fetchLogs}
-          showSearch={false}
+          hideSearch={true}
         />
       </div>
 

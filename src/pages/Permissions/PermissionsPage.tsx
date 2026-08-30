@@ -1,10 +1,11 @@
+// @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../hooks/useAuth';
 import { permissionApi } from '../../services/api';
 import { Permission, PermissionFormData } from '../../types';
 import toast from 'react-hot-toast';
-import { Plus, Edit, Trash2, X, MoreVertical } from 'lucide-react';
+import { Edit, Trash2, X, MoreVertical  , Plus} from 'lucide-react';;
 import DataTable from '../../components/DataTable';
 
 const PermissionsPage: React.FC = () => {

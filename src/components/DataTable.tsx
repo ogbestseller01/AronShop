@@ -76,8 +76,8 @@ export default function DataTable<T extends Record<string, any>>({
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
-  // Debounce
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  // Debounce - FIX: use ReturnType<typeof setTimeout> instead of ReturnType<typeof setTimeout>
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {

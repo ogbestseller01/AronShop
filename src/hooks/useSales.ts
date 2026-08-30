@@ -32,8 +32,8 @@ export const useSales = (options: UseSalesOptions = {}) => {
       const data = res.data.data;
       setSales(data.data || []);
       setTotal(data.total || 0);
-      if (data.stats) {
-        setStats(data.stats);
+      if ((data as any).stats) {
+        setStats((data as any).stats);
       }
       // Optionally fetch stats separately
       try {

@@ -2,15 +2,13 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Footer from './Footer';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
-  const { t } = useLanguage();
+  const { logout } = useAuth(); // only keep what's used
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);

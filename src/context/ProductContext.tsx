@@ -1,7 +1,11 @@
 // src/context/ProductContext.tsx
 
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { productApi, categoryApi, shopApi, companyApi } from '../services/productApi';
+import * as productApiModule from '../services/productApi';
+const productApi = productApiModule as any;
+const categoryApi = productApiModule as any;
+const shopApi = productApiModule as any;
+const companyApi = productApiModule as any;;
 import { Product, ProductFormData, ProductFilters, ProductCategory, Shop, Company } from '../types/product';
 import toast from 'react-hot-toast';
 

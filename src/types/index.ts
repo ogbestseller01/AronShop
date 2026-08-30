@@ -1,4 +1,4 @@
-// ===== COMMON =====
+// ==================== COMMON ====================
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -19,9 +19,10 @@ export interface PaginatedData<T> {
   prev_page_url: string | null;
   to: number;
   total: number;
+  stats?: any; // for sales stats
 }
 
-// ===== AUTH =====
+// ==================== AUTH ====================
 export interface LoginRequest {
   email: string;
   password: string;
@@ -88,7 +89,7 @@ export interface MeResponse {
   password_days_remaining: number;
 }
 
-// ===== USER =====
+// ==================== USER ====================
 export interface User {
   id: string;
   name: string;
@@ -116,7 +117,7 @@ export interface UserFormData {
   status?: string; // for update
 }
 
-// ===== ROLE & PERMISSION =====
+// ==================== ROLE & PERMISSION ====================
 export interface Role {
   id: string;
   name: string;
@@ -152,10 +153,11 @@ export interface PermissionFormData {
   description?: string;
 }
 
-// ===== SHOP =====
+// ==================== SHOP ====================
 export interface Shop {
   shop_id: string;
-  name: string;
+  name: string; // primary name
+  shop_name?: string; // alias
   location: string | null;
   manager_id: string | null;
   status: 'active' | 'inactive' | 'maintenance';
@@ -163,6 +165,7 @@ export interface Shop {
   updated_at: string;
   deleted_at: string | null;
   manager?: User | null;
+  company_id?: string | number; // added for completeness
 }
 
 export interface ShopFormData {
@@ -172,7 +175,7 @@ export interface ShopFormData {
   status?: 'active' | 'inactive' | 'maintenance';
 }
 
-// ===== Audit Trail =====
+// ==================== AUDIT TRAIL ====================
 export interface AuditTrail {
   id: string;
   user_id: string | null;
@@ -213,8 +216,7 @@ export interface AuditTrailFilters {
   per_page?: number;
 }
 
-
-// ===== OTP =====
+// ==================== OTP ====================
 export interface OTP {
   id: string;
   email: string;
@@ -250,7 +252,7 @@ export interface OTPFilters {
   per_page?: number;
 }
 
-// ===== Failed Login Attempts =====
+// ==================== FAILED LOGIN ATTEMPTS ====================
 export interface FailedLoginAttempt {
   id: string;
   email: string;
@@ -276,7 +278,7 @@ export interface FailedLoginFilters {
   per_page?: number;
 }
 
-// ===== Company =====
+// ==================== COMPANY ====================
 export interface Company {
   id: string;
   company_name: string;
@@ -305,7 +307,7 @@ export interface CompanyFilters {
   per_page?: number;
 }
 
-// ===== Product Category =====
+// ==================== PRODUCT CATEGORY ====================
 export interface ProductCategory {
   category_id: string;
   category_name: string;
@@ -318,9 +320,9 @@ export interface ProductCategory {
 
 export interface ProductCategoryFormData {
   category_name: string;
-  model?: string;
-  sku?: string[];
   status?: 'active' | 'inactive';
+  model?: string; // used in UI
+  sku?: string[]; // used in UI
 }
 
 export interface ProductCategoryFilters {
@@ -329,8 +331,14 @@ export interface ProductCategoryFilters {
   per_page?: number;
 }
 
+// ==================== PRODUCT ====================
+export type ProductStatus = 'active' | 'inactive' | 'sold' | 'returned';
+export type ProductStockStatus = 'in_stock' | 'transferred' | 'received' | 'sold' | 'damaged' | 'pending_return' | 'returned';
 
-// product.ts
+export interface ProductLoanPrice {
+  company_id: string;
+  price: number;
+}
 
 export interface Product {
   product_id: string;
@@ -348,36 +356,9 @@ export interface Product {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
-
-  // Relations
   category?: ProductCategory;
   shop?: Shop;
 }
-
-export interface ProductCategory {
-  category_id: string;
-  category_name: string;
-  model?: string;
-  sku?: string[];
-}
-
-export interface Shop {
-  shop_id: string;
-  shop_name: string;
-}
-
-export interface ProductLoanPrice {
-  company_id: string;
-  price: number;
-}
-
-export interface Company {
-  id: string;
-  company_name: string;
-}
-
-export type ProductStatus = 'active' | 'inactive' | 'sold' | 'returned';
-export type ProductStockStatus = 'in_stock' | 'transferred' | 'received' | 'sold' | 'damaged' | 'pending_return' | 'returned';
 
 export interface ProductFormData {
   category_id: string;
@@ -409,9 +390,19 @@ export interface ProductStats {
   in_stock: number;
 }
 
+// ==================== SALE ====================
+export interface Customer {
+  customer_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address?: string;
+  created_at: string;
+  updated_at: string;
+}
 
-// ===== SALE =====
 export interface Sale {
+  cancellation_reason?: string;
   sale_id: string;
   agent_id: string;
   product_id: string;
@@ -421,22 +412,10 @@ export interface Sale {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  // Relations
   agent?: User;
   product?: Product;
   customer?: Customer;
   company?: Company;
-
-}
-
-export interface Customer {
-  customer_id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface SaleFilters {
@@ -457,6 +436,7 @@ export interface SaleStats {
 }
 
 export interface SaleFormData {
+  company_id?: string;
   agent_id: string;
   product_id: string;
   total_amount: number;
@@ -465,8 +445,7 @@ export interface SaleFormData {
   notes?: string;
 }
 
-
-// ===== REPORTS =====
+// ==================== REPORTS ====================
 export interface SalesReportFilters {
   from_date?: string;
   to_date?: string;
