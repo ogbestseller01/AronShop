@@ -1,7 +1,6 @@
 // @ts-nocheck
 import axios from 'axios';
-// @ts-ignore
-import appConfig from '../config';
+import appConfig from '../config'; // Make sure this path is correct
 import toast from 'react-hot-toast';
 
 // Import all types from the central types file
@@ -64,6 +63,7 @@ export const api = axios.create({
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
+  timeout: 30000,
 });
 
 // ---------- REQUEST INTERCEPTOR ----------
@@ -73,7 +73,6 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // ❌ All console.log removed – no API logs anywhere
     return config;
   },
   (error) => Promise.reject(error)
@@ -81,19 +80,32 @@ api.interceptors.request.use(
 
 // ---------- RESPONSE INTERCEPTOR ----------
 api.interceptors.response.use(
-  (response) => {
-    // ❌ No console.log – silent response
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // ⚠️ Keep error logging for debugging (optional – remove if you want complete silence)
-    console.error('[API] Error:', error.response?.status, error.response?.data || error.message);
+    // Only log in development
+    if (import.meta.env.DEV) {
+      console.error('[API] Error:', error.response?.status, error.response?.data || error.message);
+    }
 
+    // Handle authentication errors
     if (error.response?.status === 401 || error.response?.status === 403) {
-      toast.error('Session expired. Please login again.');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
+
+    // Handle network errors
+    if (error.code === 'ERR_NETWORK') {
+      toast.error('Network error. Please check your connection.');
+    }
+
+    // Handle timeout errors
+    if (error.code === 'ECONNABORTED') {
+      toast.error('Request timeout. Please try again.');
     }
 
     return Promise.reject(error);
@@ -451,4 +463,5 @@ export const reportApi = {
   agentsWithSales: (params?: any) => api.get<ApiResponse<any>>('/v19/reports/agents', { params }),
   shopsWithSales: (params?: any) => api.get<ApiResponse<any>>('/v19/reports/shops', { params }),
 };
+
 export type { User, Role };
