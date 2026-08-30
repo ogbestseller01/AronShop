@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { productApi, categoryApi, shopApi, companyApi } from '../../services/api';
 import { Product, ProductFormData, ProductLoanPrice, ProductCategory, Shop, Company } from '../../types';
 import toast from 'react-hot-toast';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import Select from 'react-select';
 import {
   Edit,
@@ -17,7 +17,9 @@ import {
   Archive,
   Scan,
   Info,
-  Plus, // ✅ Added Plus
+  Plus,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import Badge from '../../components/Badge';
 import DataTable from '../../components/DataTable';
@@ -31,6 +33,36 @@ const getErrorMessage = (err: any): string => {
   }
   return err.response?.data?.message || err.message || 'Operation failed';
 };
+
+// --- IMEI validation (format + Luhn checksum) -----------------------------
+// A real IMEI is exactly 15 digits and passes the Luhn checksum.
+const luhnCheck = (value: string): boolean => {
+  let sum = 0;
+  let alternate = false;
+  for (let i = value.length - 1; i >= 0; i--) {
+    let n = parseInt(value[i], 10);
+    if (alternate) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+    alternate = !alternate;
+  }
+  return sum % 10 === 0;
+};
+
+const validateImei = (raw: string): { valid: boolean; error?: string } => {
+  const value = (raw || '').trim();
+  if (!value) return { valid: false, error: 'IMEI is required' };
+  if (!/^\d+$/.test(value)) return { valid: false, error: 'IMEI must contain digits only' };
+  if (value.length !== 15) {
+    return { valid: false, error: `IMEI must be exactly 15 digits (currently ${value.length})` };
+  }
+  if (!luhnCheck(value)) return { valid: false, error: 'Invalid IMEI (checksum failed)' };
+  return { valid: true };
+};
+
+const sanitizeImeiInput = (value: string) => value.replace(/\D/g, '').slice(0, 15);
 
 // --- React Select custom styles ---
 const selectStyles = {
@@ -98,6 +130,28 @@ const ConfirmDialog: React.FC<{
   );
 };
 
+// --- Compact scanner box (shared by create & edit modes) ---
+const ScannerBox: React.FC<{ onStop: () => void }> = ({ onStop }) => (
+  <div className="mt-3 flex justify-center">
+    <div className="border-2 border-orange-300 dark:border-orange-700 rounded-lg overflow-hidden bg-black w-full max-w-[320px] shadow-lg">
+      <div id="scanner-reader" style={{ width: '100%', height: '210px' }} />
+      <div className="px-2 py-1.5 bg-gray-900 flex items-center justify-between">
+        <span className="text-[11px] text-gray-300 flex items-center gap-1">
+          <Scan size={12} className="animate-pulse text-orange-400" />
+          Scanning…
+        </span>
+        <button
+          type="button"
+          onClick={onStop}
+          className="px-2.5 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-[11px] font-medium"
+        >
+          Stop
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 const ProductsPage: React.FC = () => {
   const { t } = useLanguage();
   const { hasPermission, user } = useAuth();
@@ -158,6 +212,8 @@ const ProductsPage: React.FC = () => {
   // Scanner ref
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  // Debounce ref so the same barcode isn't re-processed multiple times per second
+  const lastScanRef = useRef<{ code: string; time: number }>({ code: '', time: 0 });
 
   // Dropdown state
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
@@ -422,15 +478,9 @@ const ProductsPage: React.FC = () => {
   };
 
   // ----- IMEI management -----
-  const addImeiField = () => setImeiList([...imeiList, '']);
   const removeImeiField = (index: number) => {
     const updated = [...imeiList];
     updated.splice(index, 1);
-    setImeiList(updated);
-  };
-  const updateImeiField = (index: number, value: string) => {
-    const updated = [...imeiList];
-    updated[index] = value;
     setImeiList(updated);
   };
   const clearAllImeis = () => {
@@ -438,11 +488,12 @@ const ProductsPage: React.FC = () => {
     toast.success('All IMEIs cleared');
   };
 
-  // Manual IMEI add
+  // Manual IMEI add — validated (format + Luhn checksum) before it's accepted
   const handleManualAdd = () => {
     const imei = manualImei.trim();
-    if (!imei) {
-      toast.error('Please enter an IMEI');
+    const validation = validateImei(imei);
+    if (!validation.valid) {
+      toast.error(validation.error || 'Invalid IMEI');
       return;
     }
     if (imeiList.includes(imei)) {
@@ -454,7 +505,7 @@ const ProductsPage: React.FC = () => {
     toast.success(`IMEI "${imei}" added`);
   };
 
-  // ----- Scanner (unchanged) -----
+  // ----- Scanner: compact, faster (higher fps), 1D-barcode aware, validated -----
   useEffect(() => {
     if (!isScanning) {
       if (scannerRef.current) {
@@ -483,7 +534,19 @@ const ProductsPage: React.FC = () => {
 
       let scanner: Html5Qrcode;
       try {
-        scanner = new Html5Qrcode('scanner-reader');
+        scanner = new Html5Qrcode('scanner-reader', {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.QR_CODE,
+          ],
+          verbose: false,
+        } as any);
       } catch (initErr: any) {
         const msg = initErr.message || initErr.toString() || 'Failed to initialise scanner';
         toast.error('Scanner init error: ' + msg);
@@ -494,43 +557,55 @@ const ProductsPage: React.FC = () => {
       scannerRef.current = scanner;
 
       const cameraIdOrConfig = { facingMode: 'environment' };
+      // Wide, short box tuned for 1D IMEI/serial barcodes; higher fps = faster ("sensitive") detection
       const config = {
-        fps: 30,
-        qrbox: { width: 200, height: 200 },
-        aspectRatio: 1.0,
+        fps: 20,
+        qrbox: { width: 260, height: 110 },
+        aspectRatio: 1.6,
+        disableFlip: false,
       };
-
-      let scanInProgress = false;
 
       scanner
         .start(
           cameraIdOrConfig,
           config,
           (decodedText) => {
-            if (scanInProgress) return;
-            scanInProgress = true;
-
             const imei = decodedText.trim();
+            const now = Date.now();
+
+            // Debounce: ignore the exact same code re-fired within 2s (camera keeps re-reading it)
+            if (lastScanRef.current.code === imei && now - lastScanRef.current.time < 2000) {
+              return;
+            }
+            lastScanRef.current = { code: imei, time: now };
+
+            const validation = validateImei(imei);
+            if (!validation.valid) {
+              toast.error(`Rejected "${imei}": ${validation.error}`);
+              return; // keep the scanner running, don't accept bad reads
+            }
+
             if (selectedProduct) {
               setImeiList([imei]);
               toast.success(`IMEI updated to "${imei}"`);
+              setIsScanning(false);
             } else {
               if (imeiList.includes(imei)) {
                 toast.error(`IMEI "${imei}" already exists in the list`);
-              } else {
-                setImeiList(prev => {
-                  const newList = [...prev];
-                  if (newList.length > 0 && newList[newList.length - 1] === '') {
-                    newList[newList.length - 1] = imei;
-                  } else {
-                    newList.push(imei);
-                  }
-                  return newList;
-                });
-                toast.success(`IMEI "${imei}" scanned and added`);
+                return; // keep scanning
               }
+              setImeiList(prev => {
+                const newList = [...prev];
+                if (newList.length > 0 && newList[newList.length - 1] === '') {
+                  newList[newList.length - 1] = imei;
+                } else {
+                  newList.push(imei);
+                }
+                return newList;
+              });
+              toast.success(`IMEI "${imei}" scanned and added`);
+              // Stay open so multiple units can be scanned back-to-back; user taps Stop when done.
             }
-            setIsScanning(false);
           },
           () => {}
         )
@@ -574,14 +649,21 @@ const ProductsPage: React.FC = () => {
     setLoanPrices(updated);
   };
 
-  // ----- Submit -----
+  // ----- Submit (with IMEI validation as the final safety net) -----
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
       if (selectedProduct) {
-        const imei = imeiList.length > 0 ? imeiList[0] : '';
+        const imei = imeiList.length > 0 ? imeiList[0].trim() : '';
+        const imeiValidation = validateImei(imei);
+        if (!imeiValidation.valid) {
+          toast.error(imeiValidation.error || 'Invalid IMEI');
+          setIsSubmitting(false);
+          return;
+        }
+
         const submitData: ProductFormData = {
           shop_id: formData.shop_id || null,
           category_id: formData.category_id,
@@ -595,7 +677,7 @@ const ProductsPage: React.FC = () => {
         await productApi.update(selectedProduct.product_id, submitData);
         toast.success('Product updated successfully');
       } else {
-        const imeis = imeiList.filter(imei => imei.trim() !== '');
+        const imeis = imeiList.map(i => i.trim()).filter(imei => imei !== '');
         if (imeis.length === 0) {
           toast.error('Please add at least one IMEI');
           setIsSubmitting(false);
@@ -613,6 +695,24 @@ const ProductsPage: React.FC = () => {
         }
         if (!selectedSku) {
           toast.error('Please select a SKU');
+          setIsSubmitting(false);
+          return;
+        }
+
+        const invalidImeis = imeis
+          .map(imei => ({ imei, validation: validateImei(imei) }))
+          .filter(r => !r.validation.valid);
+        if (invalidImeis.length > 0) {
+          toast.error(
+            `Fix invalid IMEI(s) before saving: ${invalidImeis.map(r => r.imei).join(', ')}`
+          );
+          setIsSubmitting(false);
+          return;
+        }
+
+        const uniqueImeis = new Set(imeis);
+        if (uniqueImeis.size !== imeis.length) {
+          toast.error('Duplicate IMEIs detected in the list — please remove duplicates');
           setIsSubmitting(false);
           return;
         }
@@ -893,6 +993,10 @@ const ProductsPage: React.FC = () => {
 
   const isShopDisabled = !isAdminOrManager && userShops.length === 1;
   const isShopRequired = !isAdminOrManager && userShops.length > 1;
+
+  const manualImeiValidation = manualImei.length > 0 ? validateImei(manualImei) : null;
+  const editImei = imeiList[0] || '';
+  const editImeiValidation = editImei.length > 0 ? validateImei(editImei) : null;
 
   return (
     <div className="h-full flex flex-col p-4 md:p-6 overflow-hidden">
@@ -1219,14 +1323,33 @@ const ProductsPage: React.FC = () => {
 
                 {!selectedProduct ? (
                   <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                      <input
-                        type="text"
-                        value={manualImei}
-                        onChange={(e) => setManualImei(e.target.value)}
-                        placeholder="Enter IMEI manually"
-                        className="flex-1 min-w-[120px] border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                      />
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <div className="flex-1 min-w-[140px] relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={manualImei}
+                          onChange={(e) => setManualImei(sanitizeImeiInput(e.target.value))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleManualAdd();
+                            }
+                          }}
+                          maxLength={15}
+                          placeholder="Enter 15-digit IMEI"
+                          className={`w-full border rounded-lg pl-3 pr-14 py-2 text-sm font-mono focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
+                            !manualImeiValidation
+                              ? 'border-gray-300 dark:border-slate-600 focus:ring-orange-400'
+                              : manualImeiValidation.valid
+                              ? 'border-green-400 bg-green-50 dark:bg-green-900/10 focus:ring-green-400'
+                              : 'border-red-300 bg-red-50 dark:bg-red-900/10 focus:ring-red-400'
+                          }`}
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 pointer-events-none">
+                          {manualImei.length}/15
+                        </span>
+                      </div>
                       <button
                         type="button"
                         onClick={handleManualAdd}
@@ -1238,7 +1361,7 @@ const ProductsPage: React.FC = () => {
                         type="button"
                         onClick={startScanner}
                         disabled={isScanning}
-                        className="px-2 sm:px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center gap-1 whitespace-nowrap"
+                        className="px-2 sm:px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center gap-1 whitespace-nowrap"
                       >
                         <Scan size={16} /> {t('scan')}
                       </button>
@@ -1252,23 +1375,13 @@ const ProductsPage: React.FC = () => {
                         </button>
                       )}
                     </div>
-
-                    {isScanning && (
-                      <div className="mt-3 flex justify-center">
-                        <div className="border rounded-lg overflow-hidden bg-black max-w-[300px] w-full">
-                          <div id="scanner-reader" style={{ width: '100%', aspectRatio: '1/1' }} />
-                          <div className="p-2 bg-gray-100 dark:bg-slate-700 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={stopScanner}
-                              className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
-                            >
-                              Stop Scanner
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                    {manualImeiValidation && !manualImeiValidation.valid && (
+                      <p className="text-xs text-red-500 mb-2 flex items-center gap-1">
+                        <AlertCircle size={12} /> {manualImeiValidation.error}
+                      </p>
                     )}
+
+                    {isScanning && <ScannerBox onStop={stopScanner} />}
 
                     {imeiList.length > 0 && (
                       <div className="overflow-x-auto mt-3">
@@ -1277,25 +1390,38 @@ const ProductsPage: React.FC = () => {
                             <tr>
                               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">#</th>
                               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">IMEI</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Valid</th>
                               <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                            {imeiList.map((imei, idx) => (
-                              <tr key={idx}>
-                                <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{idx + 1}</td>
-                                <td className="px-3 py-2 text-sm font-mono text-gray-700 dark:text-gray-300">{imei}</td>
-                                <td className="px-3 py-2 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() => removeImeiField(idx)}
-                                    className="text-red-500 hover:text-red-700"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                            {imeiList.map((imei, idx) => {
+                              const rowValidation = validateImei(imei);
+                              return (
+                                <tr key={idx}>
+                                  <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{idx + 1}</td>
+                                  <td className="px-3 py-2 text-sm font-mono text-gray-700 dark:text-gray-300">{imei}</td>
+                                  <td className="px-3 py-2 text-sm">
+                                    {rowValidation.valid ? (
+                                      <CheckCircle2 size={16} className="text-green-500" />
+                                    ) : (
+                                      <span title={rowValidation.error} className="inline-flex">
+                                        <AlertCircle size={16} className="text-red-500" />
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => removeImeiField(idx)}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1304,18 +1430,31 @@ const ProductsPage: React.FC = () => {
                 ) : (
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="text"
-                        value={imeiList[0] || ''}
-                        onChange={(e) => setImeiList([e.target.value])}
-                        placeholder="Enter IMEI"
-                        className="flex-1 min-w-[120px] border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                      />
+                      <div className="flex-1 min-w-[140px] relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={editImei}
+                          onChange={(e) => setImeiList([sanitizeImeiInput(e.target.value)])}
+                          maxLength={15}
+                          placeholder="Enter 15-digit IMEI"
+                          className={`w-full border rounded-lg pl-3 pr-14 py-2 text-sm font-mono focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
+                            !editImeiValidation
+                              ? 'border-gray-300 dark:border-slate-600 focus:ring-orange-400'
+                              : editImeiValidation.valid
+                              ? 'border-green-400 bg-green-50 dark:bg-green-900/10 focus:ring-green-400'
+                              : 'border-red-300 bg-red-50 dark:bg-red-900/10 focus:ring-red-400'
+                          }`}
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 pointer-events-none">
+                          {editImei.length}/15
+                        </span>
+                      </div>
                       <button
                         type="button"
                         onClick={startScanner}
                         disabled={isScanning}
-                        className="px-2 sm:px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center gap-1 whitespace-nowrap"
+                        className="px-2 sm:px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center gap-1 whitespace-nowrap"
                       >
                         <Scan size={16} /> {t('scan')}
                       </button>
@@ -1329,22 +1468,12 @@ const ProductsPage: React.FC = () => {
                         </button>
                       )}
                     </div>
-                    {isScanning && (
-                      <div className="mt-3 flex justify-center">
-                        <div className="border rounded-lg overflow-hidden bg-black max-w-[300px] w-full">
-                          <div id="scanner-reader" style={{ width: '100%', aspectRatio: '1/1' }} />
-                          <div className="p-2 bg-gray-100 dark:bg-slate-700 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={stopScanner}
-                              className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
-                            >
-                              Stop Scanner
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                    {editImeiValidation && !editImeiValidation.valid && (
+                      <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                        <AlertCircle size={12} /> {editImeiValidation.error}
+                      </p>
                     )}
+                    {isScanning && <ScannerBox onStop={stopScanner} />}
                   </div>
                 )}
               </div>
