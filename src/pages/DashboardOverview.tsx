@@ -73,10 +73,10 @@ interface DashboardData {
 const COLORS = ['#f97316', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#f59e0b'];
 
 const DashboardOverview: React.FC = () => {
-  const { t } = useLanguage(); // ✅ keep as t
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true); // ✅ keep as setLoading
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchDashboard = useCallback(async () => {
@@ -130,7 +130,18 @@ const DashboardOverview: React.FC = () => {
 
   const { summary, charts, trends } = data;
   const isAdminOrManager = summary.total_users !== undefined;
-  const statusData = Object.entries(charts.products_by_status).map(([name, value]) => ({ name, value }));
+  
+  // FIX: Null safety for products_by_status
+  const statusData = charts.products_by_status 
+    ? Object.entries(charts.products_by_status).map(([name, value]) => ({ name, value }))
+    : [];
+
+  // FIX: Null safety for other chart data
+  const safeProductsByCategory = charts.products_by_category || [];
+  const safeSalesByPaymentMethod = charts.sales_by_payment_method || [];
+  const safeTopSellingProducts = charts.top_selling_products || [];
+  const safeSalesTrend = trends.sales_trend || [];
+  const safeSalesByMonth = trends.sales_by_month || [];
 
   return (
     <div className="space-y-6">
@@ -142,12 +153,12 @@ const DashboardOverview: React.FC = () => {
             <SummaryCard icon={<Store className="text-cyan-500" />} label={t('total_companies')} value={summary.total_companies ?? 0} />
           </>
         )}
-        <SummaryCard icon={<Store className="text-green-500" />} label={t('total_shops')} value={summary.total_shops} />
-        <SummaryCard icon={<PackageOpen className="text-indigo-500" />} label={t('total_products')} value={summary.total_products} />
-        <SummaryCard icon={<Package className="text-orange-500" />} label={t('products_in_stock')} value={summary.products_in_stock} />
-        <SummaryCard icon={<Tag className="text-teal-500" />} label={t('product_categories')} value={summary.total_product_categories} />
-        <SummaryCard icon={<ShoppingCart className="text-blue-600" />} label={t('total_sales')} value={summary.total_sales} />
-        <SummaryCard icon={<AlertCircle className="text-red-500" />} label={t('returned_devices')} value={summary.total_returned} />
+        <SummaryCard icon={<Store className="text-green-500" />} label={t('total_shops')} value={summary.total_shops ?? 0} />
+        <SummaryCard icon={<PackageOpen className="text-indigo-500" />} label={t('total_products')} value={summary.total_products ?? 0} />
+        <SummaryCard icon={<Package className="text-orange-500" />} label={t('products_in_stock')} value={summary.products_in_stock ?? 0} />
+        <SummaryCard icon={<Tag className="text-teal-500" />} label={t('product_categories')} value={summary.total_product_categories ?? 0} />
+        <SummaryCard icon={<ShoppingCart className="text-blue-600" />} label={t('total_sales')} value={summary.total_sales ?? 0} />
+        <SummaryCard icon={<AlertCircle className="text-red-500" />} label={t('returned_devices')} value={summary.total_returned ?? 0} />
       </div>
 
       {/* CHARTS ROW 1 */}
@@ -155,7 +166,7 @@ const DashboardOverview: React.FC = () => {
         {/* PRODUCTS BY CATEGORY – stacked bar with orange shades */}
         <ChartCard title={t('products_by_category')}>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={charts.products_by_category} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={safeProductsByCategory} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="category" tick={{ fontSize: 12 }} />
               <YAxis />
@@ -195,7 +206,7 @@ const DashboardOverview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title={t('sales_by_payment_method')}>
           <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={charts.sales_by_payment_method} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
+            <BarChart data={safeSalesByPaymentMethod} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="method" tick={{ fontSize: 12 }} angle={-30} textAnchor="end" height={50} interval={0} />
               <YAxis />
@@ -222,8 +233,8 @@ const DashboardOverview: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                {charts.top_selling_products.map((p, idx) => (
-                  <tr key={p.product_id}>
+                {safeTopSellingProducts.map((p, idx) => (
+                  <tr key={p.product_id || idx}>
                     <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{idx + 1}</td>
                     <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{p.category_name || '—'}</td>
                     <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{p.model || '—'}</td>
@@ -233,7 +244,7 @@ const DashboardOverview: React.FC = () => {
                     <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{p.shop_location || '—'}</td>
                   </tr>
                 ))}
-                {charts.top_selling_products.length === 0 && (
+                {safeTopSellingProducts.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">{t('no_data')}</td>
                   </tr>
@@ -248,7 +259,7 @@ const DashboardOverview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title={t('sales_trend_30_days')}>
           <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={trends.sales_trend} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
+            <LineChart data={safeSalesTrend} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={50} interval="preserveStartEnd" />
               <YAxis />
@@ -260,7 +271,7 @@ const DashboardOverview: React.FC = () => {
 
         <ChartCard title={t('sales_by_month')}>
           <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={trends.sales_by_month} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
+            <BarChart data={safeSalesByMonth} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={50} interval="preserveStartEnd" />
               <YAxis />
