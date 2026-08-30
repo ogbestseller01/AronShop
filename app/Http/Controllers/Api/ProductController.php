@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\BaseApiController;
 use App\Models\Product;
+use App\Models\OTP;
 use App\Models\ProductCategory;
 use App\Models\Shop;
 use App\Traits\Auditable;

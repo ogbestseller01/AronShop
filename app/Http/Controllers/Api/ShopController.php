@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseApiController;
 use App\Models\Shop;
 use App\Models\User;
+use App\Models\OTP;
 use App\Traits\Auditable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;

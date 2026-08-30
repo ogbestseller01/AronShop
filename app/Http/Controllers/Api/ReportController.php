@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BaseApiController;
 use App\Models\Sale;
 use App\Models\Product;
 use App\Models\Shop;
+use App\Models\OTP;
 use App\Models\ProductCategory;
 use App\Traits\Auditable;
 use Illuminate\Http\Request;

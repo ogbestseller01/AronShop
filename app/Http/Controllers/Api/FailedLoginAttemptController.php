@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\FailedLoginAttempt;
 use App\Traits\Auditable;
+use App\Models\OTP;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 

@@ -6,6 +6,7 @@ use App\Models\Sale;
 use App\Models\Product;
 use App\Models\Shop;
 use App\Traits\Auditable;
+use App\Models\OTP;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\UserSession;
+use App\Models\OTP;
 use App\Traits\Auditable;
 use Illuminate\Http\Request;
 

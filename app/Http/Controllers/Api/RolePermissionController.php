@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseApiController;
 use App\Models\Role;
 use App\Models\Permission;
+use App\Models\OTP;
 use App\Traits\Auditable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;

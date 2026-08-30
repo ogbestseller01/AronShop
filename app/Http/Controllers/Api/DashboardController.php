@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Sale;
 use App\Models\Role;
+use App\Models\OTP;
 use App\Models\Permission;
 use App\Models\Company;
 use Illuminate\Http\Request;
