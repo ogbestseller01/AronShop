@@ -17,7 +17,7 @@ import {
   Archive,
   Scan,
   Info,
-  Plus, // ✅ Added Plus
+  Plus,
 } from 'lucide-react';
 import Badge from '../../components/Badge';
 import DataTable from '../../components/DataTable';
@@ -148,9 +148,9 @@ const ProductsPage: React.FC = () => {
   const [skuOptions, setSkuOptions] = useState<string[]>([]);
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
 
-  // IMEI list
-  const [imeiList, setImeiList] = useState<string[]>([]);
-  const [manualImei, setManualImei] = useState<string>('');
+  // IMEI/Identifier list - now can hold any text/numbers
+  const [identifierList, setIdentifierList] = useState<string[]>([]);
+  const [manualIdentifier, setManualIdentifier] = useState<string>('');
 
   // Loan prices
   const [loanPrices, setLoanPrices] = useState<ProductLoanPrice[]>([]);
@@ -381,8 +381,8 @@ const ProductsPage: React.FC = () => {
         status: product.status,
       });
       setSelectedSku(null);
-      setImeiList([product.imei]);
-      setManualImei('');
+      setIdentifierList([product.imei]);
+      setManualIdentifier('');
       setLoanPrices(product.loan_selling_price || []);
       fetchPurchaseInfo(product.category_id, product.sku);
     } else {
@@ -398,8 +398,8 @@ const ProductsPage: React.FC = () => {
         status: 'active',
       });
       setSelectedSku(null);
-      setImeiList([]);
-      setManualImei('');
+      setIdentifierList([]);
+      setManualIdentifier('');
       setLoanPrices([]);
       setPurchaseInfo(null);
       setAutoFilledBuyingPrice(null);
@@ -421,40 +421,40 @@ const ProductsPage: React.FC = () => {
     setIsScanning(false);
   };
 
-  // ----- IMEI management -----
-  const addImeiField = () => setImeiList([...imeiList, '']);
-  const removeImeiField = (index: number) => {
-    const updated = [...imeiList];
+  // ----- Identifier management (now accepts any text/number) -----
+  const addIdentifierField = () => setIdentifierList([...identifierList, '']);
+  const removeIdentifierField = (index: number) => {
+    const updated = [...identifierList];
     updated.splice(index, 1);
-    setImeiList(updated);
+    setIdentifierList(updated);
   };
-  const updateImeiField = (index: number, value: string) => {
-    const updated = [...imeiList];
+  const updateIdentifierField = (index: number, value: string) => {
+    const updated = [...identifierList];
     updated[index] = value;
-    setImeiList(updated);
+    setIdentifierList(updated);
   };
-  const clearAllImeis = () => {
-    setImeiList([]);
-    toast.success('All IMEIs cleared');
+  const clearAllIdentifiers = () => {
+    setIdentifierList([]);
+    toast.success('All identifiers cleared');
   };
 
-  // Manual IMEI add
+  // Manual identifier add
   const handleManualAdd = () => {
-    const imei = manualImei.trim();
-    if (!imei) {
-      toast.error('Please enter an IMEI');
+    const identifier = manualIdentifier.trim();
+    if (!identifier) {
+      toast.error('Please enter an identifier');
       return;
     }
-    if (imeiList.includes(imei)) {
-      toast.error(`IMEI "${imei}" already exists in the list`);
+    if (identifierList.includes(identifier)) {
+      toast.error(`Identifier "${identifier}" already exists in the list`);
       return;
     }
-    setImeiList([...imeiList, imei]);
-    setManualImei('');
-    toast.success(`IMEI "${imei}" added`);
+    setIdentifierList([...identifierList, identifier]);
+    setManualIdentifier('');
+    toast.success(`Identifier "${identifier}" added`);
   };
 
-  // ----- Scanner (unchanged) -----
+  // ----- Scanner - now accepts any text from QR/barcode -----
   useEffect(() => {
     if (!isScanning) {
       if (scannerRef.current) {
@@ -510,24 +510,28 @@ const ProductsPage: React.FC = () => {
             if (scanInProgress) return;
             scanInProgress = true;
 
-            const imei = decodedText.trim();
+            // Remove any whitespace and process the scanned text
+            const scannedText = decodedText.trim();
+            
             if (selectedProduct) {
-              setImeiList([imei]);
-              toast.success(`IMEI updated to "${imei}"`);
+              // For editing, replace the identifier
+              setIdentifierList([scannedText]);
+              toast.success(`Identifier updated to "${scannedText}"`);
             } else {
-              if (imeiList.includes(imei)) {
-                toast.error(`IMEI "${imei}" already exists in the list`);
+              // For creating, add to the list
+              if (identifierList.includes(scannedText)) {
+                toast.error(`Identifier "${scannedText}" already exists in the list`);
               } else {
-                setImeiList(prev => {
+                setIdentifierList(prev => {
                   const newList = [...prev];
                   if (newList.length > 0 && newList[newList.length - 1] === '') {
-                    newList[newList.length - 1] = imei;
+                    newList[newList.length - 1] = scannedText;
                   } else {
-                    newList.push(imei);
+                    newList.push(scannedText);
                   }
                   return newList;
                 });
-                toast.success(`IMEI "${imei}" scanned and added`);
+                toast.success(`Identifier "${scannedText}" scanned and added`);
               }
             }
             setIsScanning(false);
@@ -556,7 +560,7 @@ const ProductsPage: React.FC = () => {
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [isScanning, selectedProduct, imeiList]);
+  }, [isScanning, selectedProduct, identifierList]);
 
   const startScanner = () => setIsScanning(true);
   const stopScanner = () => setIsScanning(false);
@@ -581,12 +585,12 @@ const ProductsPage: React.FC = () => {
 
     try {
       if (selectedProduct) {
-        const imei = imeiList.length > 0 ? imeiList[0] : '';
+        const identifier = identifierList.length > 0 ? identifierList[0] : '';
         const submitData: ProductFormData = {
           shop_id: formData.shop_id || null,
           category_id: formData.category_id,
           sku: formData.sku,
-          imei: imei,
+          imei: identifier,
           buying_price: formData.buying_price || undefined,
           cash_selling_price: formData.cash_selling_price || null,
           loan_selling_price: loanPrices.filter(lp => lp.company_id && lp.price > 0),
@@ -595,9 +599,9 @@ const ProductsPage: React.FC = () => {
         await productApi.update(selectedProduct.product_id, submitData);
         toast.success('Product updated successfully');
       } else {
-        const imeis = imeiList.filter(imei => imei.trim() !== '');
-        if (imeis.length === 0) {
-          toast.error('Please add at least one IMEI');
+        const identifiers = identifierList.filter(id => id.trim() !== '');
+        if (identifiers.length === 0) {
+          toast.error('Please add at least one identifier');
           setIsSubmitting(false);
           return;
         }
@@ -627,9 +631,9 @@ const ProductsPage: React.FC = () => {
           status: formData.status,
         };
 
-        const submitData = { ...baseData, sku: selectedSku, imeis: imeis.join(',') };
+        const submitData = { ...baseData, sku: selectedSku, imeis: identifiers.join(',') };
         await productApi.store(submitData);
-        toast.success(`Products created for SKU "${selectedSku}" with ${imeis.length} IMEI(s)`);
+        toast.success(`Products created for SKU "${selectedSku}" with ${identifiers.length} identifier(s)`);
       }
       await fetchProducts();
       handleCloseModal();
@@ -671,14 +675,13 @@ const ProductsPage: React.FC = () => {
     return [];
   };
 
-  // ✅ Clean company name: remove location after dash/em dash
+  // Clean company name: remove location after dash/em dash
   const getCleanCompanyName = (companyId: string): string => {
     let name = companyNames[companyId];
     if (!name) {
       const company = companies.find(c => c.id === companyId);
       name = company?.company_name || companyId;
     }
-    // Remove location after dash or em dash
     const separators = [' — ', ' - ', ' – '];
     for (const sep of separators) {
       const idx = name.indexOf(sep);
@@ -712,7 +715,7 @@ const ProductsPage: React.FC = () => {
     },
     {
       key: 'imei',
-      label: t('imei'),
+      label: t('identifier'),
       render: (item: Product) => <span className="font-mono text-xs">{item.imei}</span>,
     },
     {
@@ -910,7 +913,7 @@ const ProductsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Table – showSearch removed */}
+      {/* Table */}
       <div className="flex-1 min-h-0">
         <DataTable
           title=""
@@ -1210,11 +1213,11 @@ const ProductsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* === Section: IMEI Management === */}
+              {/* === Section: Identifier Management (was IMEI) === */}
               <div className="bg-gray-50 dark:bg-slate-700/30 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <span className="w-1 h-4 bg-orange-500 rounded"></span>
-                  {selectedProduct ? t('imei') : t('imei_list')}
+                  {selectedProduct ? t('identifier') : t('identifier_list')}
                 </h4>
 
                 {!selectedProduct ? (
@@ -1222,9 +1225,9 @@ const ProductsPage: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2 mb-3">
                       <input
                         type="text"
-                        value={manualImei}
-                        onChange={(e) => setManualImei(e.target.value)}
-                        placeholder="Enter IMEI manually"
+                        value={manualIdentifier}
+                        onChange={(e) => setManualIdentifier(e.target.value)}
+                        placeholder="Enter identifier (IMEI, serial, etc.)"
                         className="flex-1 min-w-[120px] border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                       />
                       <button
@@ -1242,10 +1245,10 @@ const ProductsPage: React.FC = () => {
                       >
                         <Scan size={16} /> {t('scan')}
                       </button>
-                      {imeiList.length > 0 && (
+                      {identifierList.length > 0 && (
                         <button
                           type="button"
-                          onClick={clearAllImeis}
+                          onClick={clearAllIdentifiers}
                           className="px-2 sm:px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium whitespace-nowrap"
                         >
                           Clear All
@@ -1270,25 +1273,25 @@ const ProductsPage: React.FC = () => {
                       </div>
                     )}
 
-                    {imeiList.length > 0 && (
+                    {identifierList.length > 0 && (
                       <div className="overflow-x-auto mt-3">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                           <thead className="bg-gray-100 dark:bg-slate-700/50">
                             <tr>
                               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">#</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">IMEI</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Identifier</th>
                               <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                            {imeiList.map((imei, idx) => (
+                            {identifierList.map((identifier, idx) => (
                               <tr key={idx}>
                                 <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{idx + 1}</td>
-                                <td className="px-3 py-2 text-sm font-mono text-gray-700 dark:text-gray-300">{imei}</td>
+                                <td className="px-3 py-2 text-sm font-mono text-gray-700 dark:text-gray-300">{identifier}</td>
                                 <td className="px-3 py-2 text-right">
                                   <button
                                     type="button"
-                                    onClick={() => removeImeiField(idx)}
+                                    onClick={() => removeIdentifierField(idx)}
                                     className="text-red-500 hover:text-red-700"
                                   >
                                     <Trash2 size={16} />
@@ -1306,9 +1309,9 @@ const ProductsPage: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="text"
-                        value={imeiList[0] || ''}
-                        onChange={(e) => setImeiList([e.target.value])}
-                        placeholder="Enter IMEI"
+                        value={identifierList[0] || ''}
+                        onChange={(e) => setIdentifierList([e.target.value])}
+                        placeholder="Enter identifier"
                         className="flex-1 min-w-[120px] border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                       />
                       <button
