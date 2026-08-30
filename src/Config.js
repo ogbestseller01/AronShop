@@ -1,4 +1,4 @@
-const baseURLApi = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+const baseURLApi = import.meta.env.VITE_API_BASE_URL || 'https://aronshop.ogonegroup.co.tz/api';
 
 const redirectUrl = typeof window !== "undefined" ?
     window.location.origin :
