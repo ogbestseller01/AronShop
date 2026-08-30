@@ -1,6 +1,5 @@
 // @ts-nocheck
 import axios from 'axios';
-import appConfig from '../config'; // Make sure this path is correct
 import toast from 'react-hot-toast';
 
 // Import all types from the central types file
@@ -55,7 +54,8 @@ import type {
   ReturnsReportData,
 } from '../types';
 
-const baseURL = appConfig.baseURLApi;
+// Use environment variable directly
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://aronshop.ogonegroup.co.tz/api';
 
 export const api = axios.create({
   baseURL,
@@ -82,12 +82,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only log in development
     if (import.meta.env.DEV) {
       console.error('[API] Error:', error.response?.status, error.response?.data || error.message);
     }
 
-    // Handle authentication errors
     if (error.response?.status === 401 || error.response?.status === 403) {
       const token = localStorage.getItem('auth_token');
       if (token) {
@@ -98,14 +96,8 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle network errors
     if (error.code === 'ERR_NETWORK') {
       toast.error('Network error. Please check your connection.');
-    }
-
-    // Handle timeout errors
-    if (error.code === 'ECONNABORTED') {
-      toast.error('Request timeout. Please try again.');
     }
 
     return Promise.reject(error);
