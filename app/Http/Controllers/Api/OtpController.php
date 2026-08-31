@@ -12,10 +12,7 @@ class OTPController extends BaseApiController
 {
     use Auditable;
 
-    /**
-     * List OTP records with filters and statistics
-     * Permission: otp.view
-     */
+   
     public function index(Request $request)
     {
         $perm = $this->checkPermission('otp.view');
@@ -62,10 +59,7 @@ class OTPController extends BaseApiController
         }
     }
 
-    /**
-     * Resend OTP (public endpoint – no permission check needed)
-     * Validates email exists and rate-limits to 60 seconds.
-     */
+   
     public function resend(Request $request)
     {
         try {
