@@ -50,19 +50,29 @@ const SETTINGS_ITEMS = [
   { key: 'audit', labelKey: 'audit_trail', icon: FileText, permission: 'audit.view', path: '/audit' },
 ];
 
+// 🔒 Keys that are restricted to ADMINISTRATOR and MANAGER only
+const RESTRICTED_KEYS = ['companies'];
+
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, isMobile, onClose }) => {
   const { t } = useLanguage();
   const { role, hasPermission } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(true);
 
-  // 🔒 Only ADMINISTRATOR and MANAGER can see settings items
+  // 🔒 Only ADMINISTRATOR and MANAGER can see restricted items and settings items
   const isAdminOrManager = role?.name === 'ADMINISTRATOR' || role?.name === 'MANAGER';
 
-  // Filter main items by permission
-  const mainItems = MAIN_NAV_ITEMS.filter((item) => hasPermission(item.permission));
+  // Filter main items:
+  // - For restricted keys (companies, categories), require isAdminOrManager AND permission.
+  // - For other items, just check permission.
+  const mainItems = MAIN_NAV_ITEMS.filter((item) => {
+    if (RESTRICTED_KEYS.includes(item.key)) {
+      return isAdminOrManager && hasPermission(item.permission);
+    }
+    return hasPermission(item.permission);
+  });
 
   // Filter settings items by permission and role
-  const settingsItems = SETTINGS_ITEMS.filter((item) => 
+  const settingsItems = SETTINGS_ITEMS.filter((item) =>
     isAdminOrManager && hasPermission(item.permission)
   );
 
@@ -170,7 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, isMobile, onClose }) => {
                   {settingsItems.map((item) => {
                     const Icon = item.icon;
                     const label = t(item.labelKey);
-                    
+
                     return (
                       <NavLink
                         key={item.key}

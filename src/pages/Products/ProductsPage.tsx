@@ -715,7 +715,7 @@ const ProductsPage: React.FC = () => {
     },
     {
       key: 'imei',
-      label: t('identifier'),
+      label: t('imei'),
       render: (item: Product) => <span className="font-mono text-xs">{item.imei}</span>,
     },
     {

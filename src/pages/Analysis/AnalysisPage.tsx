@@ -36,7 +36,37 @@ import {
 
 const COLORS = ['#f97316', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#f59e0b', '#14b8a6', '#f472b6', '#6366f1', '#ec4899'];
 
-// ---- Safe formatter for weekly tick (handles string or number) ----
+// ---- Helpers ----
+/** Format number with commas (full) */
+const formatNumber = (num: number | undefined | null): string => {
+  if (num === undefined || num === null) return '0';
+  return num.toLocaleString('en-US');
+};
+
+/** Compact format: 1K, 10K, 100K, 1M, etc. */
+const formatCompactNumber = (num: number | undefined | null): string => {
+  if (num === undefined || num === null) return '0';
+  const abs = Math.abs(num);
+  if (abs >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
+  if (abs >= 1_000) return (num / 1_000).toFixed(0) + 'K';
+  return num.toString();
+};
+
+/** Truncate text with ellipsis and title attribute */
+const truncateText = (text: string | undefined, maxLen: number = 18): string => {
+  if (!text) return '—';
+  return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+};
+
+/** Tooltip formatter for recharts – shows full numbers */
+const tooltipFormatter = (value: any, name: any): [any, any] => {
+  if (typeof value === 'number') {
+    return [formatNumber(value), name];
+  }
+  return [value, name];
+};
+
+/** Format week tick (e.g., "202503" -> "W3 Mar") */
 const formatWeekTick = (value: any): string => {
   if (value === undefined || value === null) return '';
   const str = String(value);
@@ -156,10 +186,10 @@ const AnalysisPage: React.FC = () => {
 
       {/* KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard icon={<ShoppingCart className="text-blue-500" size={24} />} label={t('total_sales')} value={sales_overview.total_sales ?? 0} />
-        <SummaryCard icon={<DollarSign className="text-emerald-500" size={24} />} label={t('total_revenue')} value={`TSh ${(sales_overview.total_revenue ?? 0).toLocaleString()}`} />
-        <SummaryCard icon={<TrendingUp className="text-orange-500" size={24} />} label={t('total_profit')} value={`TSh ${(sales_overview.total_profit ?? 0).toLocaleString()}`} />
-        <SummaryCard icon={<Package className="text-purple-500" size={24} />} label={t('total_stock_cost')} value={`TSh ${(stock_summary.total_stock_cost ?? 0).toLocaleString()}`} />
+        <SummaryCard icon={<ShoppingCart className="text-blue-500" size={24} />} label={t('total_sales')} value={formatNumber(sales_overview.total_sales)} />
+        <SummaryCard icon={<DollarSign className="text-emerald-500" size={24} />} label={t('total_revenue')} value={`TSh ${formatNumber(sales_overview.total_revenue)}`} />
+        <SummaryCard icon={<TrendingUp className="text-orange-500" size={24} />} label={t('total_profit')} value={`TSh ${formatNumber(sales_overview.total_profit)}`} />
+        <SummaryCard icon={<Package className="text-purple-500" size={24} />} label={t('total_stock_cost')} value={`TSh ${formatNumber(stock_summary.total_stock_cost)}`} />
       </div>
 
       {/* TREND CHARTS */}
@@ -168,9 +198,17 @@ const AnalysisPage: React.FC = () => {
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={daily_trend} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 10, angle: -30, textAnchor: 'end' }} height={50} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10 }}
+                angle={-30}
+                textAnchor="end"
+                height={50}
+                interval="preserveStartEnd"
+                tickFormatter={(val) => truncateText(val, 8)}
+              />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={formatCompactNumber} width={50} />
+              <Tooltip formatter={tooltipFormatter} />
               <Line type="monotone" dataKey="total" stroke="#f97316" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
@@ -182,13 +220,15 @@ const AnalysisPage: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="week"
-                tick={{ fontSize: 9, angle: -45, textAnchor: 'end' }}
+                tick={{ fontSize: 9 }}
+                angle={-45}
+                textAnchor="end"
                 height={70}
                 tickFormatter={formatWeekTick}
                 interval={0}
               />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={formatCompactNumber} width={50} />
+              <Tooltip formatter={tooltipFormatter} />
               <Bar dataKey="total" fill="#f97316" />
             </BarChart>
           </ResponsiveContainer>
@@ -198,9 +238,17 @@ const AnalysisPage: React.FC = () => {
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={monthly_trend} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 10, angle: -30, textAnchor: 'end' }} height={50} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 10 }}
+                angle={-30}
+                textAnchor="end"
+                height={50}
+                interval="preserveStartEnd"
+                tickFormatter={(val) => truncateText(val, 12)}
+              />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={formatCompactNumber} width={50} />
+              <Tooltip formatter={tooltipFormatter} />
               <Line type="monotone" dataKey="total" stroke="#f97316" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
@@ -220,15 +268,14 @@ const AnalysisPage: React.FC = () => {
                 cy="50%"
                 outerRadius={100}
                 labelLine={{ stroke: '#888' }}
-                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                
+                label={({ name, percent }) => `${truncateText(name, 12)} ${((percent ?? 0) * 100).toFixed(0)}%`}
               >
                 {paymentData.map((_entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
-              <Legend verticalAlign="bottom" height={36} />
+              <Tooltip formatter={tooltipFormatter} />
+              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px' }} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -244,15 +291,14 @@ const AnalysisPage: React.FC = () => {
                 cy="50%"
                 outerRadius={100}
                 labelLine={{ stroke: '#888' }}
-                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                
+                label={({ name, percent }) => `${truncateText(name, 12)} ${((percent ?? 0) * 100).toFixed(0)}%`}
               >
                 {categoryData.map((_entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
-              <Legend verticalAlign="bottom" height={36} />
+              <Tooltip formatter={tooltipFormatter} />
+              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px' }} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -264,9 +310,17 @@ const AnalysisPage: React.FC = () => {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={agent_performance} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="agent_name" tick={{ fontSize: 10, angle: -20, textAnchor: 'end' }} height={50} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
+              <XAxis
+                dataKey="agent_name"
+                tick={{ fontSize: 9 }}
+                angle={-20}
+                textAnchor="end"
+                height={50}
+                interval={0}
+                tickFormatter={(val) => truncateText(val, 14)}
+              />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={formatCompactNumber} width={50} />
+              <Tooltip formatter={tooltipFormatter} />
               <Legend verticalAlign="top" height={36} />
               <Bar dataKey="total_revenue" fill="#f97316" name={t('revenue')} />
               <Bar dataKey="total_sales" fill="#3b82f6" name={t('sales')} />
@@ -278,9 +332,17 @@ const AnalysisPage: React.FC = () => {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={shop_performance} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="shop_name" tick={{ fontSize: 10, angle: -20, textAnchor: 'end' }} height={50} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
+              <XAxis
+                dataKey="shop_name"
+                tick={{ fontSize: 9 }}
+                angle={-20}
+                textAnchor="end"
+                height={50}
+                interval={0}
+                tickFormatter={(val) => truncateText(val, 14)}
+              />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={formatCompactNumber} width={50} />
+              <Tooltip formatter={tooltipFormatter} />
               <Legend verticalAlign="top" height={36} />
               <Bar dataKey="total_revenue" fill="#f97316" name={t('revenue')} />
               <Bar dataKey="total_sales" fill="#3b82f6" name={t('sales')} />
@@ -306,11 +368,11 @@ const AnalysisPage: React.FC = () => {
               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {product_performance.slice(0, 10).map((p: any, idx: number) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700">
-                    <td className="px-3 py-2">{p?.sku || '—'}</td>
-                    <td className="px-3 py-2">{p?.category || '—'}</td>
-                    <td className="px-3 py-2">{p?.model || '—'}</td>
-                    <td className="px-3 py-2 text-right">{p?.total_sales ?? 0}</td>
-                    <td className="px-3 py-2 text-right">TSh {(p?.total_revenue ?? 0).toLocaleString()}</td>
+                    <td className="px-3 py-2 max-w-[80px] truncate" title={p?.sku || ''}>{p?.sku || '—'}</td>
+                    <td className="px-3 py-2 max-w-[100px] truncate" title={p?.category || ''}>{p?.category || '—'}</td>
+                    <td className="px-3 py-2 max-w-[100px] truncate" title={p?.model || ''}>{p?.model || '—'}</td>
+                    <td className="px-3 py-2 text-right">{formatNumber(p?.total_sales)}</td>
+                    <td className="px-3 py-2 text-right">TSh {formatNumber(p?.total_revenue)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -331,9 +393,9 @@ const AnalysisPage: React.FC = () => {
               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {model_sales.slice(0, 10).map((m: any, idx: number) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700">
-                    <td className="px-3 py-2">{m?.model || '—'}</td>
-                    <td className="px-3 py-2 text-right">{m?.sales ?? 0}</td>
-                    <td className="px-3 py-2 text-right">TSh {(m?.revenue ?? 0).toLocaleString()}</td>
+                    <td className="px-3 py-2 max-w-[120px] truncate" title={m?.model || ''}>{m?.model || '—'}</td>
+                    <td className="px-3 py-2 text-right">{formatNumber(m?.sales)}</td>
+                    <td className="px-3 py-2 text-right">TSh {formatNumber(m?.revenue)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -348,9 +410,17 @@ const AnalysisPage: React.FC = () => {
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={profit_trends} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 10, angle: -30, textAnchor: 'end' }} height={50} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 10 }}
+                angle={-30}
+                textAnchor="end"
+                height={50}
+                interval="preserveStartEnd"
+                tickFormatter={(val) => truncateText(val, 12)}
+              />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={formatCompactNumber} width={50} />
+              <Tooltip formatter={tooltipFormatter} />
               <Line type="monotone" dataKey="profit" stroke="#f97316" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
@@ -361,22 +431,20 @@ const AnalysisPage: React.FC = () => {
             <div className="font-medium text-sm text-gray-600 dark:text-gray-400">{t('loan')}</div>
             <div className="flex justify-between border-b pb-2">
               <span className="text-gray-600 dark:text-gray-400">{t('total_loan_sales')}</span>
-              <span className="font-bold">{interest_summary.total_loan_sales ?? 0}</span>
+              <span className="font-bold">{formatNumber(interest_summary.total_loan_sales)}</span>
             </div>
             <div className="flex justify-between border-b pb-2">
               <span className="text-gray-600 dark:text-gray-400">{t('total_loan_revenue')}</span>
-              <span className="font-bold">TSh {(interest_summary.total_loan_revenue ?? 0).toLocaleString()}</span>
+              <span className="font-bold">TSh {formatNumber(interest_summary.total_loan_revenue)}</span>
             </div>
-
-
             <div className="font-medium text-sm text-gray-600 dark:text-gray-400 mt-2">{t('cash')}</div>
             <div className="flex justify-between border-b pb-2">
               <span className="text-gray-600 dark:text-gray-400">{t('total_cash_sales')}</span>
-              <span className="font-bold">{interest_summary.total_cash_sales ?? 0}</span>
+              <span className="font-bold">{formatNumber(interest_summary.total_cash_sales)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600 dark:text-gray-400">{t('total_cash_revenue')}</span>
-              <span className="font-bold">TSh {(interest_summary.total_cash_revenue ?? 0).toLocaleString()}</span>
+              <span className="font-bold">TSh {formatNumber(interest_summary.total_cash_revenue)}</span>
             </div>
           </div>
         </ChartCard>
@@ -387,19 +455,19 @@ const AnalysisPage: React.FC = () => {
         <ChartCard title={t('stock_summary')} icon={<Package className="text-orange-500" size={18} />}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stock_summary.in_stock ?? 0}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(stock_summary.in_stock)}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">{t('in_stock')}</div>
             </div>
             <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stock_summary.sold ?? 0}</div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatNumber(stock_summary.sold)}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">{t('sold')}</div>
             </div>
             <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stock_summary.returned ?? 0}</div>
+              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{formatNumber(stock_summary.returned)}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">{t('returned')}</div>
             </div>
             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stock_summary.total_products ?? 0}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(stock_summary.total_products)}</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">{t('total_products')}</div>
             </div>
           </div>
@@ -419,8 +487,8 @@ const AnalysisPage: React.FC = () => {
                 {agent_ranking_by_sales.slice(0, 10).map((a: any, idx: number) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700">
                     <td className="px-3 py-2">{idx + 1}</td>
-                    <td className="px-3 py-2">{a?.agent_name || '—'}</td>
-                    <td className="px-3 py-2 text-right">{a?.total_sales ?? 0}</td>
+                    <td className="px-3 py-2 max-w-[140px] truncate" title={a?.agent_name || ''}>{a?.agent_name || '—'}</td>
+                    <td className="px-3 py-2 text-right">{formatNumber(a?.total_sales)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -435,23 +503,23 @@ const AnalysisPage: React.FC = () => {
 // ---- Helper Components ----
 interface SummaryCardProps { icon: React.ReactNode; label: string; value: string | number; }
 const SummaryCard: React.FC<SummaryCardProps> = ({ icon, label, value }) => (
-  <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 flex items-center gap-4 shadow-sm">
-    <div className="p-2 rounded-full bg-gray-100 dark:bg-slate-700">{icon}</div>
-    <div>
-      <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
+  <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 flex items-center gap-4 shadow-sm min-h-[80px]">
+    <div className="p-2 rounded-full bg-gray-100 dark:bg-slate-700 flex-shrink-0">{icon}</div>
+    <div className="min-w-0 flex-1">
+      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{label}</p>
+      <p className="text-xl font-bold text-gray-900 dark:text-white truncate" title={String(value)}>{value}</p>
     </div>
   </div>
 );
 
 interface ChartCardProps { title: string; icon: React.ReactNode; children: React.ReactNode; }
 const ChartCard: React.FC<ChartCardProps> = ({ title, icon, children }) => (
-  <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 shadow-sm">
-    <div className="flex items-center gap-2 mb-3">
+  <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 shadow-sm min-h-[320px] flex flex-col">
+    <div className="flex items-center gap-2 mb-3 flex-shrink-0">
       {icon}
-      <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300">{title}</h3>
+      <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300 truncate" title={title}>{title}</h3>
     </div>
-    {children}
+    <div className="flex-1 min-h-0">{children}</div>
   </div>
 );
 

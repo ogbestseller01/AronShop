@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../hooks/useAuth';
 import { reportApi, shopApi, userApi, categoryApi } from '../../services/api';
-import { Shop, User, ProductCategory } from '../../types';
+import { Shop, User, ProductCategory } from '../../types'; // removed Sale, Product
 import toast from 'react-hot-toast';
 import Select from 'react-select';
 import Badge from '../../components/Badge';
@@ -42,16 +42,16 @@ const selectStyles = {
 };
 
 const ReportsPage: React.FC = () => {
-  const { t, lang } = useLanguage(); // <-- get lang as well
+  const { t, lang } = useLanguage();
   const { hasPermission } = useAuth();
 
   const [activeTab, setActiveTab] = useState<ReportType>('sales');
-  const [loading, _setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
-  const [page, _setPage] = useState(1);
-  const [perPage, _setPerPage] = useState(15);
-  const [totalItems, _setTotalItems] = useState(0);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(15);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Filters
   const [filters, setFilters] = useState<any>({});
@@ -61,10 +61,10 @@ const ReportsPage: React.FC = () => {
 
   // Modal state
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [isModalOpen, _setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Export state
-  const [exporting, _setExporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const canViewSales = hasPermission('reports.sales.view');
   const canViewStock = hasPermission('reports.stock.view');
@@ -83,19 +83,19 @@ const ReportsPage: React.FC = () => {
 
         setAgents(
           Array.isArray(agentData)
-            ? agentData.map((item: any) => ({ id: item.id, name: item.name }))
+            ? agentData.map((item: any) => ({ id: item.id, name: item.name })) as any
             : []
         );
         setShops(
-          Array.isArray(shopData as any)
+          Array.isArray(shopData)
             ? shopData.map((item: any) => ({
                 shop_id: item.shop_id,
                 name: item.name,
                 location: item.location || '',
-              }))
+              })) as any
             : []
         );
-        setCategories([] as any);
+        setCategories([]);
       } else {
         const [shopRes, agentRes, catRes] = await Promise.all([
           shopApi.dropdown(),
@@ -108,12 +108,12 @@ const ReportsPage: React.FC = () => {
         const catData = catRes?.data?.data ?? catRes?.data ?? [];
 
         setShops(
-          Array.isArray(shopData as any)
+          Array.isArray(shopData)
             ? shopData.map((item: any) => ({
                 shop_id: item.id || item.shop_id || item.value,
                 name: item.label || item.name || 'Unknown Shop',
                 location: item.location || '',
-              }))
+              })) as any
             : []
         );
         setAgents(
@@ -121,24 +121,24 @@ const ReportsPage: React.FC = () => {
             ? agentData.map((item: any) => ({
                 id: item.id || item.value,
                 name: item.label || item.name || 'Unknown Agent',
-              }))
+              })) as any
             : []
         );
         setCategories(
-          Array.isArray(catData as any)
+          Array.isArray(catData)
             ? catData.map((item: any) => ({
                 category_id: item.value || item.id,
                 category_name: item.label || item.name || 'Unknown Category',
-              }))
+              })) as any
             : []
         );
       }
     } catch (err: any) {
       console.error('Failed to load dropdowns:', err);
       toast.error(err?.response?.data?.message || 'Failed to load filter options');
-      setShops([] as any);
+      setShops([]);
       setAgents([]);
-      setCategories([] as any);
+      setCategories([]);
     }
   }, [activeTab]);
 
@@ -297,7 +297,7 @@ const ReportsPage: React.FC = () => {
       csvRows.push(headers.join(','));
       for (const row of formatted) {
         const values = headers.map(header => {
-          const val = (row as any)[header] ?? '';
+          const val = (row as any)[header] ?? ''; // cast to any
           const str = String(val);
           return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
         });
@@ -804,7 +804,7 @@ const ReportsPage: React.FC = () => {
       {/* Table – key with language forces re-render on language change */}
       <div className="flex-1 min-h-0">
         <DataTable
-          key={`${activeTab}-${lang}`} // ✅ force re‑render when language changes
+          key={`${activeTab}-${lang}`}
           title={t(activeTab + '_report')}
           columns={currentColumns}
           data={loading ? [] : (Array.isArray(data) ? data : [])}
@@ -817,7 +817,7 @@ const ReportsPage: React.FC = () => {
             setPage(1);
           }}
           onRefresh={fetchReport}
-          hideSearch={false}
+          // removed showSearch prop – DataTable uses hideSearch by default (search is shown)
         />
       </div>
 

@@ -132,6 +132,7 @@ const translations: Record<Language, Record<string, string>> = {
     signin_google: 'Ingia kwa Google',
     signin_apple: 'Ingia kwa Apple',
     items_per_page: 'Safu kwa ukurasa',
+    settings: 'Mipangilio', // ✅ Swahili
 
     // ===== DASHBOARD CARDS & CHARTS =====
     total_users: 'Jumla ya Watumiaji',
@@ -581,6 +582,7 @@ const translations: Record<Language, Record<string, string>> = {
     signin_google: 'Sign in with Google',
     signin_apple: 'Sign in with Apple',
     items_per_page: 'Items per page',
+    settings: 'Settings', // ✅ English
 
     // ===== DASHBOARD CARDS & CHARTS =====
     total_users: 'Total Users',
@@ -1032,6 +1034,7 @@ const translations: Record<Language, Record<string, string>> = {
     signin_google: '使用 Google 登录',
     signin_apple: '使用 Apple 登录',
     items_per_page: '每页条数',
+    settings: '设置', // ✅ Chinese
 
     // ===== DASHBOARD CARDS & CHARTS =====
     total_users: '总用户',
@@ -1371,7 +1374,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (stored === 'sw' || stored === 'en' || stored === 'zh') {
       return stored;
     }
-    return 'sw';
+    return 'sw'; // default – change to 'en' for English or 'zh' for Chinese
   };
 
   const [lang, setLang] = useState<Language>(getStoredLanguage);

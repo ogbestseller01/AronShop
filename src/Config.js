@@ -1,8 +1,9 @@
-const baseURLApi = import.meta.env.VITE_API_BASE_URL || 'https://aronshop.ogonegroup.co.tz/api';
+const baseURLApi =
+    import.meta.env.VITE_API_BASE_URL || 'https://aronshop.ogonegroup.co.tz/api';
 
 const redirectUrl = typeof window !== "undefined" ?
     window.location.origin :
-    "https://yourdomain.com";
+    "https://aronshop.ogonegroup.co.tz";
 
 const appConfig = {
     baseURLApi,
