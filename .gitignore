@@ -1,0 +1,148 @@
+# ============================================
+# Laravel & PHP Specific
+# ============================================
+/vendor/
+.env
+.env.backup
+.env.production
+.env.local
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+*.log
+*.sqlite
+*.sqlite-journal
+
+# ============================================
+# Node.js & NPM/Yarn
+# ============================================
+/node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npmrc
+
+# ============================================
+# Build & Compiled Files
+# ============================================
+/public/build/
+/public/hot
+/public/storage
+/storage/*.key
+/storage/oauth-private.key
+/storage/oauth-public.key
+/storage/logs/*.log
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/app/public/*
+!storage/app/public/.gitkeep
+
+# ============================================
+# IDE & Editor Files
+# ============================================
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.editorconfig
+*.sublime-*
+/.phpstorm.meta.php
+/.php_cs.cache
+
+# ============================================
+# Docker & Kubernetes
+# ============================================
+/docker/volumes/
+/docker-compose.override.yml
+/docker-compose.local.yml
+/k8s/secrets/
+*.kubeconfig
+!k8s/secrets/.gitkeep
+
+# ============================================
+# OS & Temp Files
+# ============================================
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+.cache/
+*.swp
+*.swo
+*~
+
+# ============================================
+# Test & Coverage
+# ============================================
+/coverage/
+/phpunit/
+.phpunit.result.cache
+tests/coverage/
+*.cov
+*.clover
+
+# ============================================
+# Deployment & CI/CD
+# ============================================
+/build.log
+deploy.log
+.deploy/
+/.github/deploy_key
+*.pem
+*.key
+*.crt
+
+# ============================================
+# Laravel Specific Files
+# ============================================
+/storage/*.key
+/bootstrap/cache/*.php
+!bootstrap/cache/.gitkeep
+/bootstrap/compiled.php
+/server.php
+/.env.backup
+
+# ============================================
+# Composer
+# ============================================
+composer.phar
+composer.lock
+# Uncomment if you want to keep composer.lock in repo
+# !composer.lock
+
+# ============================================
+# Application Specific
+# ============================================
+/aron_shop_storage/
+/backup/
+/snapshots/
+/reports/
+/.php-version
+
+# ============================================
+# Logs & Error Reports
+# ============================================
+*.log
+*.error
+error_log
+access_log
+nginx_error.log
+
+# ============================================
+# Backup Files
+# ============================================
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*-backup.*

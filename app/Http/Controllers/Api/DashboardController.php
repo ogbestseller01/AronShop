@@ -86,7 +86,7 @@ class DashboardController extends BaseApiController
                 'product_categories.category_name',
                 DB::raw("SUM(CASE WHEN products.stock_status = 'in_stock' AND products.status = 'active' THEN 1 ELSE 0 END) as in_stock"),
                 DB::raw("SUM(CASE WHEN products.stock_status = 'sold' THEN 1 ELSE 0 END) as sold"),
-                DB::raw("SUM(CASE WHEN products.stock_status = 'returned' THEN 1 ELSE 0 END) as returned")
+                DB::raw("SUM(CASE WHEN products.status = 'returned' THEN 1 ELSE 0 END) as returned")
             )
             ->groupBy('product_categories.category_id', 'product_categories.category_name');
 

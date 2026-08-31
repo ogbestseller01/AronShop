@@ -6,7 +6,7 @@ use App\Models\User;
 use App\Models\OTP;
 use App\Models\UserSession;
 use App\Models\Role;
-use App\Models\FailedLoginAttempt; // ✅ Added
+use App\Models\FailedLoginAttempt;
 use App\Mail\OTPMail;
 use App\Services\VerificationService;
 use Illuminate\Http\Request;
@@ -140,14 +140,16 @@ class AuthController extends BaseApiController
             // Clear previous failed attempts on success
             FailedLoginAttempt::clear($email, $ip);
 
+            // ✅ FIX: Return a JSON response with 403 status and extra data (instead of passing array to forbidden())
             if (is_null($user->email_verified_at)) {
                 $this->verificationService->sendVerificationOTP($user, OTP::TYPE_REGISTRATION);
-                return $this->forbidden([
-                    'message'             => 'Please verify your email first.',
-                    'email'               => $user->email,
-                    'otp_sent'            => true,
-                    'needs_verification'  => true,
-                ]);
+                return response()->json([
+                    'success'            => false,
+                    'message'            => 'Please verify your email first.',
+                    'email'              => $user->email,
+                    'otp_sent'           => true,
+                    'needs_verification' => true,
+                ], 403);
             }
 
             if (!$user->is_active || $user->status !== 'active') {

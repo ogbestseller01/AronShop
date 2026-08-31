@@ -110,7 +110,7 @@ class ReportController extends BaseApiController
                 'total_products' => Product::whereNull('deleted_at')->count(),
                 'in_stock' => Product::where('stock_status', 'in_stock')->whereNull('deleted_at')->count(),
                 'sold' => Product::where('stock_status', 'sold')->whereNull('deleted_at')->count(),
-                'returned' => Product::where('stock_status', 'returned')->whereNull('deleted_at')->count(),
+                'returned' => Product::where('status', 'returned')->whereNull('deleted_at')->count(),
                 'by_category' => ProductCategory::select('category_name', DB::raw('count(products.product_id) as count'))
                     ->leftJoin('products', 'product_categories.category_id', '=', 'products.category_id')
                     ->whereNull('products.deleted_at')
@@ -415,7 +415,7 @@ class ReportController extends BaseApiController
                 'total_products' => Product::whereNull('deleted_at')->count(),
                 'in_stock' => Product::where('stock_status', 'in_stock')->whereNull('deleted_at')->count(),
                 'sold' => Product::where('stock_status', 'sold')->whereNull('deleted_at')->count(),
-                'returned' => Product::where('stock_status', 'returned')->whereNull('deleted_at')->count(),
+                'returned' => Product::where('status', 'returned')->whereNull('deleted_at')->count(),
                 'total_stock_cost' => $totalStockCost, // now ALL products
             ];
 
