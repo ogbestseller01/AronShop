@@ -1,19 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import '../config/app_config.dart';
+import 'package:provider/provider.dart';
+
+import '../config/app_theme.dart';
+import '../l10n/app_strings.dart';
+import '../main.dart';
+import '../utils/dialog_helper.dart';
 
 class ScannerScreen extends StatefulWidget {
   final List<String> existingImeis;
   final bool isBatchMode;
   final bool isTab;
 
+  /// Optional callback for when the screen is embedded (e.g. as a bottom
+  /// nav tab, [isTab] = true) and there is no route to pop back to.
+  /// When provided, this is called with the final list of scanned codes
+  /// instead of relying on [Navigator.pop].
+  final ValueChanged<List<String>>? onFinish;
+
   const ScannerScreen({
     super.key,
     this.existingImeis = const [],
     this.isBatchMode = true,
     this.isTab = false,
+    this.onFinish,
   });
 
   @override
@@ -26,7 +37,6 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   final List<String> _scannedImeis = [];
   String? _pendingCode;
-  bool _isProcessing = false;
   bool _torchOn = false;
   bool _cameraReady = false;
 
@@ -70,7 +80,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_isProcessing || _pendingCode != null) return;
+    if (_pendingCode != null) return;
 
     final barcodes = capture.barcodes;
     if (barcodes.isEmpty) return;
@@ -90,43 +100,41 @@ class _ScannerScreenState extends State<ScannerScreen>
     HapticFeedback.mediumImpact();
 
     if (_scannedImeis.contains(raw)) {
-      Fluttertoast.showToast(
-        msg: 'Already added: $raw',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
-        toastLength: Toast.LENGTH_SHORT,
+      DialogHelper.showWarningDialog(
+        context,
+        title: AppLang.notice(context),
+        message: AppLang.t(
+          context,
+          'Already added: $raw',
+          'Tayari imeongezwa: $raw',
+        ),
       );
       return;
     }
 
-    setState(() {
-      _pendingCode = raw;
-    });
-
+    setState(() => _pendingCode = raw);
     _controller.stop();
   }
 
   void _confirmAdd() {
-    if (_pendingCode == null || _isProcessing) return;
+    if (_pendingCode == null) return;
 
+    final added = _pendingCode!;
     setState(() {
-      _isProcessing = true;
-      _scannedImeis.add(_pendingCode!);
+      _scannedImeis.add(added);
       _pendingCode = null;
-      _isProcessing = false;
     });
 
-    Fluttertoast.showToast(
-      msg: 'Added: ${_scannedImeis.last}',
-      backgroundColor: Colors.green,
-      textColor: Colors.white,
+    DialogHelper.showSuccessDialog(
+      context,
+      title: AppLang.success(context),
+      message: AppLang.t(context, 'Added: $added', 'Imeongezwa: $added'),
     );
 
     if (!widget.isBatchMode) {
-      Navigator.pop(context, _scannedImeis);
+      _return(_scannedImeis);
       return;
     }
-
     _controller.start();
   }
 
@@ -135,12 +143,22 @@ class _ScannerScreenState extends State<ScannerScreen>
     _controller.start();
   }
 
-  void _removeAt(int index) {
-    setState(() => _scannedImeis.removeAt(index));
-  }
+  void _removeAt(int index) => setState(() => _scannedImeis.removeAt(index));
 
-  void _finish() {
-    Navigator.pop(context, List<String>.from(_scannedImeis));
+  void _finish() => _return(List<String>.from(_scannedImeis));
+
+  /// Delivers the scan result back to the caller.
+  ///
+  /// - If [onFinish] is provided (typically when embedded as a tab with
+  ///   nothing to pop), it is always called.
+  /// - Otherwise, or in addition, pops the route when there is one to pop.
+  ///   This keeps normal push-based usage (e.g. from Add Product) working,
+  ///   while fixing Cancel/Done doing nothing when there is no route.
+  void _return(List<String> result) {
+    widget.onFinish?.call(result);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context, result);
+    }
   }
 
   Future<void> _toggleTorch() async {
@@ -152,17 +170,18 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeController>(); // rebuild on lang change
     final size = MediaQuery.of(context).size;
-
-    // Horizontal rectangle – good for IMEI / product barcodes
     final cutOutWidth = size.width * 0.85;
-    final cutOutHeight = cutOutWidth * 0.38; // wide & short
+    final cutOutHeight = cutOutWidth * 0.38;
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text(
-          widget.isBatchMode ? 'Scan Identifiers' : 'Scan Product',
+          widget.isBatchMode
+              ? AppLang.scanIdentifiers(context)
+              : AppLang.scanProduct(context),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         backgroundColor: Colors.black,
@@ -172,7 +191,7 @@ class _ScannerScreenState extends State<ScannerScreen>
           IconButton(
             icon: Icon(
               _torchOn ? Icons.flash_on : Icons.flash_off,
-              color: _torchOn ? Colors.amber : Colors.white70,
+              color: _torchOn ? AppTheme.secondary : Colors.white70,
             ),
             onPressed: _toggleTorch,
           ),
@@ -185,44 +204,41 @@ class _ScannerScreenState extends State<ScannerScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Camera
           MobileScanner(
             controller: _controller,
             onDetect: _onDetect,
             errorBuilder: (context, error) {
+              final msg = error.errorCode.name == 'permissionDenied'
+                  ? AppLang.t(
+                context,
+                'Camera permission denied.\nPlease allow camera access in settings.',
+                'Ruhusa ya kamera imekataliwa.\nRuhusu kamera kwenye mipangilio.',
+              )
+                  : (error.errorDetails?.message ??
+                  AppLang.t(
+                    context,
+                    'Camera error. Please try again.',
+                    'Hitilafu ya kamera. Jaribu tena.',
+                  ));
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.camera_alt_outlined,
-                        size: 64,
-                        color: Colors.white54,
-                      ),
+                      const Icon(Icons.camera_alt_outlined,
+                          size: 64, color: Colors.white54),
                       const SizedBox(height: 16),
                       Text(
-                        error.errorCode.name == 'permissionDenied'
-                            ? 'Camera permission denied.\nPlease allow camera access in settings.'
-                            : (error.errorDetails?.message ??
-                            'Camera error. Please try again.'),
+                        msg,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                        ),
+                            color: Colors.white70, fontSize: 15),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: () {
-                          _controller.start();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConfig.primaryColor,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Retry'),
+                        onPressed: () => _controller.start(),
+                        child: Text(AppLang.retry(context)),
                       ),
                     ],
                   ),
@@ -230,31 +246,28 @@ class _ScannerScreenState extends State<ScannerScreen>
               );
             },
           ),
-
-          // Horizontal rectangle overlay
           CustomPaint(
             painter: _ScannerOverlayPainter(
               cutOutWidth: cutOutWidth,
               cutOutHeight: cutOutHeight,
-              borderColor: AppConfig.primaryColor,
+              borderColor: AppTheme.secondary,
             ),
           ),
-
-          // Top instruction
           Positioned(
             top: 20,
             left: 20,
             right: 20,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.65),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 _pendingCode == null
-                    ? 'Align barcode inside the rectangle'
-                    : 'Confirm this code',
+                    ? AppLang.alignBarcode(context)
+                    : AppLang.confirmCode(context),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
@@ -264,8 +277,6 @@ class _ScannerScreenState extends State<ScannerScreen>
               ),
             ),
           ),
-
-          // ========== PENDING CONFIRMATION CARD ==========
           if (_pendingCode != null)
             Positioned(
               left: 16,
@@ -280,12 +291,10 @@ class _ScannerScreenState extends State<ScannerScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Detected',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                        ),
+                      Text(
+                        AppLang.detected(context),
+                        style: const TextStyle(
+                            fontSize: 13, color: AppTheme.greyText),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -295,6 +304,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                           fontWeight: FontWeight.bold,
                           fontFamily: 'monospace',
                           letterSpacing: 0.5,
+                          color: AppTheme.primary,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -304,14 +314,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                           Expanded(
                             child: OutlinedButton(
                               onPressed: _skipPending,
-                              style: OutlinedButton.styleFrom(
-                                padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Text('Skip'),
+                              child: Text(AppLang.skip(context)),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -320,16 +323,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                             child: ElevatedButton.icon(
                               onPressed: _confirmAdd,
                               icon: const Icon(Icons.check, size: 20),
-                              label: const Text('Add'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppConfig.primaryColor,
-                                foregroundColor: Colors.white,
-                                padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
+                              label: Text(AppLang.add(context)),
                             ),
                           ),
                         ],
@@ -339,8 +333,6 @@ class _ScannerScreenState extends State<ScannerScreen>
                 ),
               ),
             ),
-
-          // ========== BOTTOM BAR ==========
           Positioned(
             left: 0,
             right: 0,
@@ -348,9 +340,8 @@ class _ScannerScreenState extends State<ScannerScreen>
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.85),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
+                borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               padding: EdgeInsets.fromLTRB(
                 16,
@@ -367,11 +358,11 @@ class _ScannerScreenState extends State<ScannerScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppConfig.primaryColor,
+                          color: AppTheme.primary,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '${_scannedImeis.length} added',
+                          AppLang.addedCount(context, _scannedImeis.length),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -382,17 +373,15 @@ class _ScannerScreenState extends State<ScannerScreen>
                       const Spacer(),
                       if (_scannedImeis.isNotEmpty)
                         TextButton(
-                          onPressed: () {
-                            setState(() => _scannedImeis.clear());
-                          },
-                          child: const Text(
-                            'Clear',
-                            style: TextStyle(color: Colors.redAccent),
+                          onPressed: () =>
+                              setState(() => _scannedImeis.clear()),
+                          child: Text(
+                            AppLang.clear(context),
+                            style: const TextStyle(color: AppTheme.error),
                           ),
                         ),
                     ],
                   ),
-
                   if (_scannedImeis.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     SizedBox(
@@ -400,7 +389,8 @@ class _ScannerScreenState extends State<ScannerScreen>
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: _scannedImeis.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        separatorBuilder: (_, __) =>
+                        const SizedBox(width: 8),
                         itemBuilder: (context, index) {
                           return Chip(
                             label: Text(
@@ -417,9 +407,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 14),
-
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -428,18 +416,11 @@ class _ScannerScreenState extends State<ScannerScreen>
                       icon: const Icon(Icons.check_circle_outline),
                       label: Text(
                         _scannedImeis.isEmpty
-                            ? 'Cancel'
-                            : 'Done (${_scannedImeis.length})',
+                            ? AppLang.cancel(context)
+                            : AppLang.done(context, _scannedImeis.length),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConfig.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
@@ -454,7 +435,6 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 }
 
-// ---------- Horizontal rectangle overlay (for IMEI / barcodes) ----------
 class _ScannerOverlayPainter extends CustomPainter {
   final double cutOutWidth;
   final double cutOutHeight;
@@ -474,7 +454,6 @@ class _ScannerOverlayPainter extends CustomPainter {
       height: cutOutHeight,
     );
 
-    // Dim background
     final bgPaint = Paint()..color = Colors.black.withOpacity(0.55);
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
@@ -483,7 +462,6 @@ class _ScannerOverlayPainter extends CustomPainter {
       ..fillType = PathFillType.evenOdd;
     canvas.drawPath(path, bgPaint);
 
-    // Corner borders
     final borderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
@@ -492,7 +470,6 @@ class _ScannerOverlayPainter extends CustomPainter {
 
     const cornerLen = 22.0;
 
-    // Top-left
     canvas.drawPath(
       Path()
         ..moveTo(cutOutRect.left, cutOutRect.top + cornerLen)
@@ -500,7 +477,6 @@ class _ScannerOverlayPainter extends CustomPainter {
         ..lineTo(cutOutRect.left + cornerLen, cutOutRect.top),
       borderPaint,
     );
-    // Top-right
     canvas.drawPath(
       Path()
         ..moveTo(cutOutRect.right - cornerLen, cutOutRect.top)
@@ -508,7 +484,6 @@ class _ScannerOverlayPainter extends CustomPainter {
         ..lineTo(cutOutRect.right, cutOutRect.top + cornerLen),
       borderPaint,
     );
-    // Bottom-right
     canvas.drawPath(
       Path()
         ..moveTo(cutOutRect.right, cutOutRect.bottom - cornerLen)
@@ -516,7 +491,6 @@ class _ScannerOverlayPainter extends CustomPainter {
         ..lineTo(cutOutRect.right - cornerLen, cutOutRect.bottom),
       borderPaint,
     );
-    // Bottom-left
     canvas.drawPath(
       Path()
         ..moveTo(cutOutRect.left + cornerLen, cutOutRect.bottom)

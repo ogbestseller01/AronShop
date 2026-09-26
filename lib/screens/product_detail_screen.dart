@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 
-import '../config/app_config.dart';
+import '../config/app_theme.dart';
+import '../main.dart';
 import '../models/category.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../utils/dialog_helper.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final String productId;
@@ -47,7 +48,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   List<String> _skuOptions = [];
   bool _isLoadingDropdowns = false;
 
-  // ===== PERMISSIONS (same idea as web) =====
+  String t(String en, String sw) =>
+      context.read<ThemeController>().isSw ? sw : en;
+
   String get _role {
     final user = context.read<AuthService>().user;
     return (user?.role ?? '').toUpperCase();
@@ -168,10 +171,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoadingDropdowns = false);
-      Fluttertoast.showToast(
-        msg: 'Failed to load options',
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
+      DialogHelper.showErrorDialog(
+        context,
+        message: t('Failed to load options', 'Imeshindwa kupakia chaguo'),
       );
     }
   }
@@ -197,10 +199,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
 
   Future<void> _saveProduct() async {
     if (!_canEdit) {
-      Fluttertoast.showToast(
-        msg: 'You do not have permission to edit products',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        message: t(
+          'You do not have permission to edit products',
+          'Huna ruhusa ya kuhariri bidhaa',
+        ),
       );
       return;
     }
@@ -235,29 +239,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
         _populateControllers();
       });
 
-      Fluttertoast.showToast(
-        msg: 'Product updated successfully',
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
+      DialogHelper.showSuccessDialog(
+        context,
+        message: t('Product updated successfully', 'Bidhaa imesasishwa'),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      Fluttertoast.showToast(
-        msg: e.toString().replaceFirst('Exception: ', ''),
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        toastLength: Toast.LENGTH_LONG,
+      DialogHelper.showErrorDialog(
+        context,
+        message: e.toString().replaceFirst('Exception: ', ''),
       );
     }
   }
 
   Future<void> _changeStatus(String newStatus) async {
     if (!_canChangeStatus) {
-      Fluttertoast.showToast(
-        msg: 'You do not have permission to change status',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        message: t(
+          'You do not have permission to change status',
+          'Huna ruhusa ya kubadilisha hali',
+        ),
       );
       return;
     }
@@ -273,26 +276,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
         _selectedStatus = newStatus;
       });
 
-      Fluttertoast.showToast(
-        msg: 'Status updated to $newStatus',
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
+      DialogHelper.showSuccessDialog(
+        context,
+        message: t(
+          'Status updated to $newStatus',
+          'Hali imebadilishwa kuwa $newStatus',
+        ),
       );
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: e.toString().replaceFirst('Exception: ', ''),
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
+      if (!mounted) return;
+      DialogHelper.showErrorDialog(
+        context,
+        message: e.toString().replaceFirst('Exception: ', ''),
       );
     }
   }
 
   Future<void> _deleteProduct() async {
     if (!_canDelete) {
-      Fluttertoast.showToast(
-        msg: 'You do not have permission to delete products',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        message: t(
+          'You do not have permission to delete products',
+          'Huna ruhusa ya kufuta bidhaa',
+        ),
       );
       return;
     }
@@ -300,22 +307,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Product'),
-        content: const Text(
-          'Are you sure you want to delete this product? This action can be undone.',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(t('Delete Product', 'Futa Bidhaa')),
+        content: Text(
+          t(
+            'Are you sure you want to delete this product? This action can be undone.',
+            'Una uhakika unataka kufuta bidhaa hii? Kitendo hiki kinaweza kutenduliwa.',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(t('Cancel', 'Ghairi')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppTheme.error,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Delete'),
+            child: Text(t('Delete', 'Futa')),
           ),
         ],
       ),
@@ -331,29 +342,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       await api.deleteProduct(widget.productId);
 
       if (!mounted) return;
-      Fluttertoast.showToast(
-        msg: 'Product deleted successfully',
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
+      await DialogHelper.showSuccessDialog(
+        context,
+        message: t('Product deleted successfully', 'Bidhaa imefutwa'),
       );
+      if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isDeleting = false);
-      Fluttertoast.showToast(
-        msg: e.toString().replaceFirst('Exception: ', ''),
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
+      DialogHelper.showErrorDialog(
+        context,
+        message: e.toString().replaceFirst('Exception: ', ''),
       );
     }
   }
 
   void _toggleEdit() {
     if (!_canEdit) {
-      Fluttertoast.showToast(
-        msg: 'You do not have permission to edit products',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        message: t(
+          'You do not have permission to edit products',
+          'Huna ruhusa ya kuhariri bidhaa',
+        ),
       );
       return;
     }
@@ -371,16 +383,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeController>();
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Product' : 'Product Details'),
-        elevation: 0,
-        backgroundColor: AppConfig.primaryColor,
-        foregroundColor: Colors.white,
+        title: Text(
+          _isEditing
+              ? t('Edit Product', 'Hariri Bidhaa')
+              : t('Product Details', 'Maelezo ya Bidhaa'),
+        ),
         actions: [
           if (!_isLoading && _product != null) ...[
-            // Edit icon – fainted if no permission
             IconButton(
               icon: Icon(
                 _isEditing ? Icons.close : Icons.edit_outlined,
@@ -390,8 +404,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               ),
               onPressed: _canEdit || _isEditing ? _toggleEdit : null,
               tooltip: _isEditing
-                  ? 'Cancel'
-                  : (_canEdit ? 'Edit' : 'No permission to edit'),
+                  ? t('Cancel', 'Ghairi')
+                  : (_canEdit
+                  ? t('Edit', 'Hariri')
+                  : t('No permission to edit', 'Huna ruhusa ya kuhariri')),
             ),
             if (!_isEditing)
               PopupMenuButton<String>(
@@ -401,13 +417,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   if (value == 'refresh') _loadProduct();
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'refresh',
                     child: Row(
                       children: [
-                        Icon(Icons.refresh, size: 20),
-                        SizedBox(width: 8),
-                        Text('Refresh'),
+                        const Icon(Icons.refresh, size: 20),
+                        const SizedBox(width: 8),
+                        Text(t('Refresh', 'Onyesha upya')),
                       ],
                     ),
                   ),
@@ -419,13 +435,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         Icon(
                           Icons.delete_outline,
                           size: 20,
-                          color: _canDelete ? Colors.red : Colors.grey,
+                          color: _canDelete ? AppTheme.error : Colors.grey,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Delete',
+                          t('Delete', 'Futa'),
                           style: TextStyle(
-                            color: _canDelete ? Colors.red : Colors.grey,
+                            color: _canDelete ? AppTheme.error : Colors.grey,
                           ),
                         ),
                       ],
@@ -443,7 +459,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           : FadeTransition(
         opacity: _fadeAnimation,
         child: _product == null
-            ? const Center(child: Text('Product not found'))
+            ? Center(
+          child: Text(
+            t('Product not found', 'Bidhaa haijapatikana'),
+          ),
+        )
             : _isEditing
             ? _buildEditForm()
             : _buildProductDetails(),
@@ -452,28 +472,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   }
 
   Widget _buildErrorWidget() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
+            ),
             const SizedBox(height: 16),
             Text(
-              _error ?? 'Something went wrong',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+              _error ?? t('Something went wrong', 'Kuna hitilafu'),
+              style: TextStyle(
+                color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
+                fontSize: 15,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _loadProduct,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConfig.primaryColor,
-                foregroundColor: Colors.white,
-              ),
+              label: Text(t('Retry', 'Jaribu tena')),
             ),
           ],
         ),
@@ -483,20 +507,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
 
   Widget _buildProductDetails() {
     final product = _product!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppConfig.primaryColor,
-                  AppConfig.primaryColor.withOpacity(0.85),
+                  AppTheme.primary,
+                  AppTheme.primary.withOpacity(0.85),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -504,7 +529,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppConfig.primaryColor.withOpacity(0.25),
+                  color: AppTheme.primary.withOpacity(0.25),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -533,7 +558,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            product.categoryName ?? 'No Category',
+                            product.categoryName ??
+                                t('No Category', 'Hakuna Kategoria'),
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
@@ -591,43 +617,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
             ),
           ),
           const SizedBox(height: 16),
-
-          // Change Status – only interactive if permitted
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+            decoration: isDark
+                ? AppTheme.darkCardDecoration(radius: 12)
+                : AppTheme.cardDecoration(radius: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Change Status',
+                  t('Change Status', 'Badilisha Hali'),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: _canChangeStatus
-                        ? Colors.black87
-                        : Colors.grey.shade400,
+                        ? (isDark ? Colors.white : AppTheme.primary)
+                        : (isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.greyText),
                   ),
                 ),
                 if (!_canChangeStatus)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      'No permission to change status',
+                      t(
+                        'No permission to change status',
+                        'Huna ruhusa ya kubadilisha hali',
+                      ),
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade400,
+                        color: isDark
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.greyText,
                       ),
                     ),
                   ),
@@ -636,92 +659,84 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _buildStatusButton('active', Colors.green),
-                    _buildStatusButton('inactive', Colors.grey),
-                    _buildStatusButton('sold', Colors.blue),
-                    _buildStatusButton('returned', Colors.orange),
+                    _buildStatusButton('active', AppTheme.success),
+                    _buildStatusButton('inactive', AppTheme.greyText),
+                    _buildStatusButton('sold', AppTheme.accent),
+                    _buildStatusButton('returned', AppTheme.warning),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-
-          // Product Information
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+            decoration: isDark
+                ? AppTheme.darkCardDecoration(radius: 12)
+                : AppTheme.cardDecoration(radius: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Product Information',
+                Text(
+                  t('Product Information', 'Taarifa za Bidhaa'),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : AppTheme.primary,
                   ),
                 ),
                 const Divider(height: 20),
                 _buildDetailRow(
-                  'Category',
-                  product.categoryName ?? 'Not set',
+                  t('Category', 'Kategoria'),
+                  product.categoryName ?? t('Not set', 'Haijawekwa'),
                   icon: Icons.category,
                 ),
                 _buildDetailRow(
-                  'Shop',
-                  product.shopName ?? 'Not assigned',
+                  t('Shop', 'Duka'),
+                  product.shopName ?? t('Not assigned', 'Haijapewa'),
                   icon: Icons.store,
                 ),
                 _buildDetailRow(
-                  'Buying Price',
+                  t('Buying Price', 'Bei ya Kununua'),
                   product.buyingPrice != null
                       ? 'TSh ${product.buyingPrice!.toStringAsFixed(2)}'
-                      : 'Not set',
+                      : t('Not set', 'Haijawekwa'),
                   icon: Icons.shopping_cart,
                 ),
                 _buildDetailRow(
-                  'Cash Selling Price',
+                  t('Cash Selling Price', 'Bei ya Kuuzia Taslimu'),
                   product.cashSellingPrice != null
                       ? 'TSh ${product.cashSellingPrice!.toStringAsFixed(2)}'
-                      : 'Not set',
+                      : t('Not set', 'Haijawekwa'),
                   icon: Icons.attach_money,
                 ),
                 _buildDetailRow(
-                  'Stock Status',
+                  t('Stock Status', 'Hali ya Hifadhi'),
                   product.stockStatus.toUpperCase(),
                   icon: Icons.inventory_2,
                   valueColor: _getStockStatusColor(product.stockStatus),
                 ),
                 _buildDetailRow(
-                  'Created At',
+                  t('Created At', 'Imeundwa'),
                   _formatDate(product.createdAt),
                   icon: Icons.calendar_today,
                 ),
                 if (product.updatedAt != null)
                   _buildDetailRow(
-                    'Last Updated',
+                    t('Last Updated', 'Ilisasishwa'),
                     _formatDate(product.updatedAt!),
                     icon: Icons.update,
                   ),
                 if (product.loanSellingPrice != null &&
                     product.loanSellingPrice!.isNotEmpty) ...[
                   const Divider(height: 20),
-                  const Text(
-                    'Loan Prices by Company',
+                  Text(
+                    t('Loan Prices by Company', 'Bei za Mikopo kwa Kampuni'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : AppTheme.primary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -732,8 +747,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
             ),
           ),
           const SizedBox(height: 20),
-
-          // Actions – fainted when no permission
           Row(
             children: [
               Expanded(
@@ -742,23 +755,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   icon: Icon(
                     Icons.edit_outlined,
                     size: 18,
-                    color: _canEdit ? null : Colors.grey.shade400,
+                    color: _canEdit
+                        ? null
+                        : (isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.greyText),
                   ),
                   label: Text(
-                    'Edit',
+                    t('Edit', 'Hariri'),
                     style: TextStyle(
-                      color: _canEdit ? null : Colors.grey.shade400,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    side: BorderSide(
                       color: _canEdit
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade300,
+                          ? null
+                          : (isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.greyText),
                     ),
                   ),
                 ),
@@ -777,21 +787,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                       : Icon(
                     Icons.delete_outline,
                     size: 18,
-                    color: _canDelete ? Colors.red : Colors.grey.shade400,
+                    color: _canDelete
+                        ? AppTheme.error
+                        : (isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.greyText),
                   ),
                   label: Text(
-                    'Delete',
+                    t('Delete', 'Futa'),
                     style: TextStyle(
-                      color: _canDelete ? Colors.red : Colors.grey.shade400,
+                      color: _canDelete
+                          ? AppTheme.error
+                          : (isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.greyText),
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                     side: BorderSide(
-                      color: _canDelete ? Colors.red : Colors.grey.shade300,
+                      color: _canDelete
+                          ? AppTheme.error
+                          : (isDark
+                          ? AppTheme.darkBorder
+                          : AppTheme.borderLight),
                     ),
                   ),
                 ),
@@ -813,14 +831,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           children: [
             TextFormField(
               controller: _imeiController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'IMEI *',
-                hintText: 'Enter IMEI number',
-                prefixIcon: Icon(Icons.qr_code),
-                border: OutlineInputBorder(),
+                hintText: t('Enter IMEI number', 'Weka nambari ya IMEI'),
+                prefixIcon: const Icon(Icons.qr_code),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Please enter IMEI';
+                if (value == null || value.isEmpty) {
+                  return t('Please enter IMEI', 'Tafadhali weka IMEI');
+                }
                 return null;
               },
             ),
@@ -833,10 +852,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 : DropdownButtonFormField<String>(
               value: _selectedCategoryId,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Category *',
-                prefixIcon: Icon(Icons.category),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: t('Category *', 'Kategoria *'),
+                prefixIcon: const Icon(Icons.category),
               ),
               items: _categories.map((cat) {
                 return DropdownMenuItem(
@@ -848,8 +866,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 );
               }).toList(),
               onChanged: _onCategoryChanged,
-              validator: (v) =>
-              (v == null || v.isEmpty) ? 'Select category' : null,
+              validator: (v) => (v == null || v.isEmpty)
+                  ? t('Select category', 'Chagua kategoria')
+                  : null,
             ),
             const SizedBox(height: 14),
             _isLoadingDropdowns
@@ -857,16 +876,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 : _skuOptions.isEmpty
                 ? TextFormField(
               controller: _skuController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'SKU *',
-                hintText: 'Enter SKU',
-                prefixIcon: Icon(Icons.inventory),
-                border: OutlineInputBorder(),
+                hintText: t('Enter SKU', 'Weka SKU'),
+                prefixIcon: const Icon(Icons.inventory),
               ),
               onChanged: (v) => _selectedSku = v,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter SKU';
+                  return t('Please enter SKU', 'Tafadhali weka SKU');
                 }
                 return null;
               },
@@ -877,7 +895,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               decoration: const InputDecoration(
                 labelText: 'SKU *',
                 prefixIcon: Icon(Icons.inventory),
-                border: OutlineInputBorder(),
               ),
               items: _skuOptions.map((s) {
                 return DropdownMenuItem(
@@ -891,8 +908,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   _skuController.text = v ?? '';
                 });
               },
-              validator: (v) =>
-              (v == null || v.isEmpty) ? 'Select SKU' : null,
+              validator: (v) => (v == null || v.isEmpty)
+                  ? t('Select SKU', 'Chagua SKU')
+                  : null,
             ),
             const SizedBox(height: 14),
             _isLoadingDropdowns
@@ -900,15 +918,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 : DropdownButtonFormField<String>(
               value: _selectedShopId,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Shop (Optional)',
-                prefixIcon: Icon(Icons.store),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: t('Shop (Optional)', 'Duka (Si lazima)'),
+                prefixIcon: const Icon(Icons.store),
               ),
               items: [
-                const DropdownMenuItem(
+                DropdownMenuItem(
                   value: null,
-                  child: Text('None'),
+                  child: Text(t('None', 'Hakuna')),
                 ),
                 ..._shops.map((shop) {
                   return DropdownMenuItem(
@@ -928,15 +945,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               controller: _buyingPriceController,
               keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Buying Price *',
+              decoration: InputDecoration(
+                labelText: t('Buying Price *', 'Bei ya Kununua *'),
                 prefixText: 'TSh ',
-                prefixIcon: Icon(Icons.shopping_cart),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.shopping_cart),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Required';
-                if (double.tryParse(value) == null) return 'Invalid number';
+                if (value == null || value.isEmpty) {
+                  return t('Required', 'Inahitajika');
+                }
+                if (double.tryParse(value) == null) {
+                  return t('Invalid number', 'Nambari si sahihi');
+                }
                 return null;
               },
             ),
@@ -945,26 +965,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               controller: _cashSellingPriceController,
               keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Cash Selling Price',
+              decoration: InputDecoration(
+                labelText:
+                t('Cash Selling Price', 'Bei ya Kuuzia Taslimu'),
                 prefixText: 'TSh ',
-                prefixIcon: Icon(Icons.attach_money),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.attach_money),
               ),
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               value: _selectedStatus,
-              decoration: const InputDecoration(
-                labelText: 'Status',
-                prefixIcon: Icon(Icons.toggle_on),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: t('Status', 'Hali'),
+                prefixIcon: const Icon(Icons.toggle_on),
               ),
-              items: const [
-                DropdownMenuItem(value: 'active', child: Text('Active')),
-                DropdownMenuItem(value: 'inactive', child: Text('Inactive')),
-                DropdownMenuItem(value: 'sold', child: Text('Sold')),
-                DropdownMenuItem(value: 'returned', child: Text('Returned')),
+              items: [
+                DropdownMenuItem(
+                    value: 'active', child: Text(t('Active', 'Hai'))),
+                DropdownMenuItem(
+                    value: 'inactive',
+                    child: Text(t('Inactive', 'Haifanyi kazi'))),
+                DropdownMenuItem(
+                    value: 'sold', child: Text(t('Sold', 'Imeuzwa'))),
+                DropdownMenuItem(
+                    value: 'returned',
+                    child: Text(t('Returned', 'Imerudishwa'))),
               ],
               onChanged: (v) => setState(() => _selectedStatus = v),
             ),
@@ -974,27 +999,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _isSaving ? null : _toggleEdit,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('Cancel'),
+                    child: Text(t('Cancel', 'Ghairi')),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _saveProduct,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConfig.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
                     child: _isSaving
                         ? const SizedBox(
                       height: 22,
@@ -1004,9 +1015,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         strokeWidth: 2,
                       ),
                     )
-                        : const Text(
-                      'Save Changes',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                        : Text(
+                      t('Save Changes', 'Hifadhi Mabadiliko'),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -1025,20 +1036,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
         IconData? icon,
         Color? valueColor,
       }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 18, color: Colors.grey.shade500),
+            Icon(
+              icon,
+              size: 18,
+              color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
+            ),
             const SizedBox(width: 10),
           ],
           Expanded(
             flex: 2,
             child: Text(
               label,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              style: TextStyle(
+                color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
+                fontSize: 13,
+              ),
             ),
           ),
           Expanded(
@@ -1048,7 +1067,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w500,
-                color: valueColor ?? Colors.black87,
+                color: valueColor ??
+                    (isDark ? Colors.white : AppTheme.primary),
               ),
             ),
           ),
@@ -1062,11 +1082,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          const Icon(Icons.business, size: 16, color: Colors.grey),
+          Icon(
+            Icons.business,
+            size: 16,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppTheme.darkTextSecondary
+                : AppTheme.greyText,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Company: ${loan.companyId}',
+              '${t('Company', 'Kampuni')}: ${loan.companyId}',
               style: const TextStyle(fontSize: 13),
             ),
           ),
@@ -1074,7 +1100,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
             'TSh ${loan.price.toStringAsFixed(2)}',
             style: const TextStyle(
               fontWeight: FontWeight.w600,
-              color: AppConfig.secondaryColor,
+              color: AppTheme.secondary,
             ),
           ),
         ],
@@ -1116,18 +1142,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   Widget _buildStatusButton(String status, Color color) {
     final isSelected = _product?.status == status;
     final enabled = _canChangeStatus;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return OutlinedButton(
       onPressed: enabled ? () => _changeStatus(status) : null,
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        backgroundColor: isSelected && enabled
-            ? color.withOpacity(0.12)
-            : Colors.transparent,
+        backgroundColor:
+        isSelected && enabled ? color.withOpacity(0.12) : Colors.transparent,
         side: BorderSide(
           color: !enabled
-              ? Colors.grey.shade300
-              : (isSelected ? color : Colors.grey.shade300),
+              ? (isDark ? AppTheme.darkBorder : AppTheme.borderLight)
+              : (isSelected
+              ? color
+              : (isDark ? AppTheme.darkBorder : AppTheme.borderLight)),
           width: isSelected && enabled ? 1.5 : 1,
         ),
         shape: RoundedRectangleBorder(
@@ -1138,9 +1166,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
         status.toUpperCase(),
         style: TextStyle(
           color: !enabled
-              ? Colors.grey.shade400
-              : (isSelected ? color : Colors.grey.shade600),
-          fontWeight: isSelected && enabled ? FontWeight.w600 : FontWeight.w400,
+              ? (isDark ? AppTheme.darkTextSecondary : AppTheme.greyText)
+              : (isSelected
+              ? color
+              : (isDark ? AppTheme.darkTextSecondary : AppTheme.greyText)),
+          fontWeight:
+          isSelected && enabled ? FontWeight.w600 : FontWeight.w400,
           fontSize: 11,
         ),
       ),
@@ -1150,28 +1181,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'active':
-        return Colors.green;
+        return AppTheme.success;
       case 'inactive':
-        return Colors.grey;
+        return AppTheme.greyText;
       case 'sold':
-        return Colors.blue;
+        return AppTheme.accent;
       case 'returned':
-        return Colors.orange;
+        return AppTheme.warning;
       default:
-        return Colors.grey;
+        return AppTheme.greyText;
     }
   }
 
   Color _getStockStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'in_stock':
-        return Colors.green;
+        return AppTheme.success;
       case 'out_of_stock':
-        return Colors.red;
+        return AppTheme.error;
       case 'low_stock':
-        return Colors.orange;
+        return AppTheme.warning;
       default:
-        return Colors.grey;
+        return AppTheme.greyText;
     }
   }
 

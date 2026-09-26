@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../config/app_config.dart';
+import 'package:provider/provider.dart';
+
+import '../config/app_theme.dart';
+import '../main.dart';
 import '../models/product.dart';
 
 class ProductCard extends StatelessWidget {
@@ -14,19 +17,20 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSw = context.watch<ThemeController>().isSw;
+
+    String t(String en, String sw) => isSw ? sw : en;
+
+    final noCategory = t('No Category', 'Hakuna Kategoria');
+    final imeiLabel = t('IMEI', 'IMEI');
+    final skuLabel = t('SKU', 'SKU');
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+      decoration: isDark
+          ? AppTheme.darkCardDecoration(radius: 14)
+          : AppTheme.cardDecoration(radius: 14),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(14),
@@ -37,42 +41,42 @@ class ProductCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                // Icon
                 Container(
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: AppConfig.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.devices,
-                    color: AppConfig.primaryColor,
+                    color: AppTheme.primary,
                     size: 26,
                   ),
                 ),
                 const SizedBox(width: 12),
-
-                // Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        product.categoryName ?? 'No Category',
+                        product.categoryName ?? noCategory,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: isDark
+                              ? AppTheme.darkTextSecondary
+                              : AppTheme.greyText,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'IMEI: ${product.imei}',
-                        style: const TextStyle(
+                        '$imeiLabel: ${product.imei}',
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : AppTheme.primary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -82,10 +86,12 @@ class ProductCard extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              'SKU: ${product.sku}',
+                              '$skuLabel: ${product.sku}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: isDark
+                                    ? AppTheme.darkTextSecondary
+                                    : AppTheme.greyText,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -97,7 +103,7 @@ class ProductCard extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppConfig.secondaryColor,
+                                color: AppTheme.secondary,
                               ),
                             ),
                           ],
@@ -106,10 +112,9 @@ class ProductCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // Status
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: _statusColor(product.status).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(8),
@@ -137,15 +142,15 @@ class ProductCard extends StatelessWidget {
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
       case 'active':
-        return Colors.green;
+        return AppTheme.success;
       case 'inactive':
-        return Colors.grey;
+        return AppTheme.greyText;
       case 'sold':
-        return Colors.blue;
+        return AppTheme.accent;
       case 'returned':
-        return Colors.orange;
+        return AppTheme.warning;
       default:
-        return Colors.grey;
+        return AppTheme.greyText;
     }
   }
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../config/app_config.dart';
+import '../config/app_theme.dart';
+import '../main.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -36,7 +37,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
     'returned',
   ];
 
-  // Simple permission helpers (same idea as web)
+  String t(String en, String sw) {
+    return context.read<ThemeController>().isSw ? sw : en;
+  }
+
   bool get _canCreate {
     final user = context.read<AuthService>().user;
     final role = user?.role?.toUpperCase() ?? '';
@@ -139,33 +143,21 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeController>(); // rebuild on language change
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('Products Inventory'),
-        centerTitle: true,
-        backgroundColor: AppConfig.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _onRefresh,
-          ),
-        ],
-      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       floatingActionButton: _canCreate
           ? FloatingActionButton(
         onPressed: _navigateToAddProduct,
-        backgroundColor: AppConfig.primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add),
       )
           : null,
       body: Column(
         children: [
-          // Search + Filter
           Container(
-            color: Colors.white,
+            color: isDark ? AppTheme.darkSurface : Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
             child: Row(
               children: [
@@ -173,7 +165,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: 'Search by IMEI or SKU...',
+                      hintText: t(
+                        'Search by IMEI or SKU...',
+                        'Tafuta kwa IMEI au SKU...',
+                      ),
                       prefixIcon: const Icon(Icons.search, size: 22),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
@@ -181,12 +176,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         onPressed: () => _searchController.clear(),
                       )
                           : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
@@ -196,7 +185,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
                 const SizedBox(width: 8),
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.filter_list, color: Colors.grey.shade700),
+                  icon: Icon(
+                    Icons.filter_list,
+                    color: isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.greyText,
+                  ),
                   onSelected: (value) {
                     setState(() {
                       _selectedStatus = value == 'all' ? null : value;
@@ -204,9 +198,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     _onRefresh();
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'all',
-                      child: Text('All Products'),
+                      child: Text(t('All Products', 'Bidhaa Zote')),
                     ),
                     ..._statusOptions.where((s) => s != 'all').map(
                           (status) => PopupMenuItem(
@@ -224,8 +218,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ],
             ),
           ),
-
-          // List
           Expanded(
             child: _isLoading && _products.isEmpty
                 ? const LoadingWidget()
@@ -235,7 +227,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ? _buildEmptyWidget()
                 : RefreshIndicator(
               onRefresh: () async => _onRefresh(),
-              color: AppConfig.primaryColor,
+              color: AppTheme.primary,
               child: NotificationListener<ScrollNotification>(
                 onNotification: (scroll) {
                   if (scroll.metrics.pixels >=
@@ -286,27 +278,30 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   Widget _buildErrorWidget() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
+            ),
             const SizedBox(height: 16),
             Text(
-              _error ?? 'Something went wrong',
-              style: TextStyle(color: Colors.grey.shade600),
+              _error ?? t('Something went wrong', 'Kuna hitilafu'),
+              style: TextStyle(
+                color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _onRefresh,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConfig.primaryColor,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Retry'),
+              child: Text(t('Retry', 'Jaribu tena')),
             ),
           ],
         ),
@@ -315,6 +310,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   Widget _buildEmptyWidget() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -322,33 +318,31 @@ class _ProductListScreenState extends State<ProductListScreen> {
           Icon(
             Icons.inventory_2_outlined,
             size: 64,
-            color: Colors.grey.shade400,
+            color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
           ),
           const SizedBox(height: 16),
           Text(
-            'No products found',
+            t('No products found', 'Hakuna bidhaa'),
             style: TextStyle(
               fontSize: 18,
-              color: Colors.grey.shade600,
+              color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             _searchController.text.isNotEmpty
-                ? 'Try a different search term'
-                : 'Add your first product',
-            style: TextStyle(color: Colors.grey.shade500),
+                ? t('Try a different search term', 'Jaribu neno lingine')
+                : t('Add your first product', 'Ongeza bidhaa yako ya kwanza'),
+            style: TextStyle(
+              color: isDark ? AppTheme.darkTextSecondary : AppTheme.greyText,
+            ),
           ),
           if (_canCreate) ...[
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _navigateToAddProduct,
               icon: const Icon(Icons.add),
-              label: const Text('Add Product'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConfig.primaryColor,
-                foregroundColor: Colors.white,
-              ),
+              label: Text(t('Add Product', 'Ongeza Bidhaa')),
             ),
           ],
         ],
@@ -359,15 +353,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'active':
-        return Colors.green;
+        return AppTheme.success;
       case 'inactive':
-        return Colors.grey;
+        return AppTheme.greyText;
       case 'sold':
-        return Colors.blue;
+        return AppTheme.accent;
       case 'returned':
-        return Colors.orange;
+        return AppTheme.warning;
       default:
-        return Colors.grey;
+        return AppTheme.greyText;
     }
   }
 }

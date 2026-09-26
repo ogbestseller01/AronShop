@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../config/app_theme.dart';
+
 class LoadingWidget extends StatelessWidget {
   final int itemCount;
   final bool isGrid;
@@ -15,10 +17,11 @@ class LoadingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return isGrid ? _buildGridShimmer() : _buildListShimmer();
+    return isGrid ? _buildGridShimmer(context) : _buildListShimmer(context);
   }
 
-  Widget _buildListShimmer() {
+  Widget _buildListShimmer(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: itemCount,
@@ -26,12 +29,12 @@ class LoadingWidget extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Shimmer.fromColors(
-            baseColor: Colors.grey.shade300,
-            highlightColor: Colors.grey.shade100,
+            baseColor: isDark ? AppTheme.darkSurfaceLight : AppTheme.navy100,
+            highlightColor: isDark ? AppTheme.darkBorder : AppTheme.navy50,
             child: Container(
               height: height ?? 80,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? AppTheme.darkSurface : Colors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
@@ -41,7 +44,8 @@ class LoadingWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildGridShimmer() {
+  Widget _buildGridShimmer(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -53,11 +57,11 @@ class LoadingWidget extends StatelessWidget {
       itemCount: itemCount,
       itemBuilder: (context, index) {
         return Shimmer.fromColors(
-          baseColor: Colors.grey.shade300,
-          highlightColor: Colors.grey.shade100,
+          baseColor: isDark ? AppTheme.darkSurfaceLight : AppTheme.navy100,
+          highlightColor: isDark ? AppTheme.darkBorder : AppTheme.navy50,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? AppTheme.darkSurface : Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
           ),

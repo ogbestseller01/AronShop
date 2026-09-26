@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../config/app_config.dart';
+import '../config/app_theme.dart';
+import '../l10n/app_strings.dart';
+import '../main.dart';
 import '../services/auth_service.dart';
 import 'add_product_screen.dart';
 import 'product_list_screen.dart';
@@ -23,22 +25,114 @@ class _HomeScreenState extends State<HomeScreen> {
     AddProductScreen(isEmbedded: true),
   ];
 
-  final List<String> _titles = ['Products', 'Scan Barcode', 'Add Product'];
-
   @override
   Widget build(BuildContext context) {
+    // Watch the controller to rebuild UI when theme or language changes
+    final themeCtrl = context.watch<ThemeController>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSw = themeCtrl.isSw;
+
+    final titles = [
+      AppLang.products(context),
+      AppLang.scanBarcode(context),
+      AppLang.addProduct(context),
+    ];
+
     return Scaffold(
       appBar: _currentIndex == 1
-          ? null
+          ? null // Hide AppBar on Scanner tab (if it has its own UI)
           : AppBar(
         title: Text(
-          _titles[_currentIndex],
+          titles[_currentIndex],
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppConfig.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
+          // --- THEME TOGGLE ---
+          IconButton(
+            tooltip: AppLang.t(context, 'Theme', 'Mandhari'),
+            onPressed: () => themeCtrl.toggleTheme(),
+            icon: Icon(
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              color: Colors.white, // Ensure visibility on AppBar
+            ),
+          ),
+
+          // --- LANGUAGE DROPDOWN ---
+          PopupMenuButton<String>(
+            tooltip: AppLang.t(context, 'Language', 'Lugha'),
+            offset: const Offset(0, 40),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onSelected: (code) => themeCtrl.setLocale(code),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'en',
+                child: Row(
+                  children: [
+                    const Text('🇬🇧', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 10),
+                    const Text('English'),
+                    if (!isSw) ...[
+                      const Spacer(),
+                      const Icon(Icons.check, size: 18, color: AppTheme.primary),
+                    ],
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'sw',
+                child: Row(
+                  children: [
+                    const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 10),
+                    const Text('Kiswahili'),
+                    if (isSw) ...[
+                      const Spacer(),
+                      const Icon(Icons.check, size: 18, color: AppTheme.primary),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                ),
+                color: Colors.white.withOpacity(0.1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isSw ? '🇹🇿' : '🇬🇧',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isSw ? 'SW' : 'EN',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.arrow_drop_down,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // --- PROFILE ---
           IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: _showProfileDialog,
@@ -47,13 +141,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
-        child: _screens[_currentIndex],
+        child: KeyedSubtree(
+          key: ValueKey(_currentIndex),
+          child: _screens[_currentIndex],
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -61,29 +158,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() => _currentIndex = index);
-          },
-          selectedItemColor: AppConfig.primaryColor,
-          unselectedItemColor: Colors.grey.shade500,
-          type: BottomNavigationBarType.fixed,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          items: const [
+          onTap: (i) => setState(() => _currentIndex = i),
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.inventory_2_outlined),
-              activeIcon: Icon(Icons.inventory_2),
-              label: 'Products',
+              icon: const Icon(Icons.inventory_2_outlined),
+              activeIcon: const Icon(Icons.inventory_2),
+              label: AppLang.products(context),
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.qr_code_scanner_outlined),
-              activeIcon: Icon(Icons.qr_code_scanner),
-              label: 'Scan',
+              icon: const Icon(Icons.qr_code_scanner_outlined),
+              activeIcon: const Icon(Icons.qr_code_scanner),
+              label: AppLang.scan(context),
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.add_box_outlined),
-              activeIcon: Icon(Icons.add_box),
-              label: 'Add',
+              icon: const Icon(Icons.add_box_outlined),
+              activeIcon: const Icon(Icons.add_box),
+              label: AppLang.add(context),
             ),
           ],
         ),
@@ -92,61 +182,60 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showProfileDialog() {
-    final authService = context.read<AuthService>();
-    final user = authService.user;
+    final auth = context.read<AuthService>();
+    final user = auth.user;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text('User Account'),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(AppLang.userAccount(context)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.person, color: AppConfig.primaryColor),
-              title: Text(user?.name ?? 'User'),
-              subtitle: const Text('Name'),
+              leading: const Icon(Icons.person, color: AppTheme.primary),
+              title: Text(
+                user?.name ?? AppLang.t(context, 'User', 'Mtumiaji'),
+              ),
+              subtitle: Text(AppLang.name(context)),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.email, color: AppConfig.primaryColor),
+              leading: const Icon(Icons.email, color: AppTheme.primary),
               title: Text(user?.email ?? 'N/A'),
-              subtitle: const Text('Email'),
+              subtitle: Text(AppLang.email(context)),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.badge, color: AppConfig.primaryColor),
+              leading: const Icon(Icons.badge, color: AppTheme.primary),
               title: Text(user?.status?.toUpperCase() ?? 'ACTIVE'),
-              subtitle: const Text('Status'),
+              subtitle: Text(AppLang.status(context)),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.work, color: AppConfig.primaryColor),
+              leading: const Icon(Icons.work, color: AppTheme.primary),
               title: Text(user?.role?.toUpperCase() ?? 'USER'),
-              subtitle: const Text('Role'),
+              subtitle: Text(AppLang.role(context)),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(AppLang.close(context)),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await authService.logout();
+              Navigator.pop(ctx);
+              await auth.logout();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppConfig.dangerColor,
+              backgroundColor: AppTheme.error,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Logout'),
+            child: Text(AppLang.logout(context)),
           ),
         ],
       ),

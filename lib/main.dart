@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config/app_config.dart';
+import 'config/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
@@ -15,6 +17,36 @@ void main() async {
   runApp(MyApp(prefs: prefs));
 }
 
+class ThemeController extends ChangeNotifier {
+  ThemeController(this._prefs) {
+    _isDark = _prefs.getBool('is_dark') ?? false;
+    _langCode = _prefs.getString('locale') ?? 'en';
+  }
+
+  final SharedPreferences _prefs;
+  bool _isDark = false;
+  String _langCode = 'en';
+
+  bool get isDark => _isDark;
+  String get langCode => _langCode;
+  bool get isSw => _langCode == 'sw';
+
+  /// Kept for compatibility; do NOT pass this to MaterialApp.locale when 'sw'.
+  Locale get locale => Locale(_langCode);
+
+  Future<void> toggleTheme() async {
+    _isDark = !_isDark;
+    await _prefs.setBool('is_dark', _isDark);
+    notifyListeners();
+  }
+
+  Future<void> setLocale(String code) async {
+    _langCode = code;
+    await _prefs.setString('locale', code);
+    notifyListeners();
+  }
+}
+
 class MyApp extends StatelessWidget {
   final SharedPreferences prefs;
 
@@ -25,75 +57,37 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<SharedPreferences>.value(value: prefs),
-        ChangeNotifierProvider(
-          create: (context) => AuthService(prefs),
-        ),
+        ChangeNotifierProvider(create: (_) => AuthService(prefs)),
+        ChangeNotifierProvider(create: (_) => ThemeController(prefs)),
         ProxyProvider<AuthService, ApiService>(
-          update: (context, authService, _) => ApiService(authService),
+          update: (_, auth, __) => ApiService(auth),
         ),
       ],
-      child: MaterialApp(
-        title: AppConfig.appName,
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primaryColor: AppConfig.primaryColor,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: AppConfig.primaryColor,
-            secondary: AppConfig.secondaryColor,
-          ),
-          useMaterial3: true,
-          fontFamily: 'Roboto',
-          appBarTheme: const AppBarTheme(
-            elevation: 0,
-            centerTitle: true,
-            backgroundColor: Colors.transparent,
-            foregroundColor: AppConfig.primaryColor,
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade200),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: AppConfig.primaryColor,
-                width: 2,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.red, width: 2),
-            ),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConfig.primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-        // SplashScreen shows the branding animation, then hands off to
-        // AuthGateScreen — which is the ONLY place that decides Login vs
-        // Home, reactively, based on AuthService. Nothing else in the app
-        // should navigate to '/login' or '/home' directly; logging in or
-        // out just changes AuthService state and AuthGateScreen rebuilds
-        // itself automatically.
-        home: const SplashScreen(),
-        routes: {
-          '/gate': (context) => const AuthGateScreen(),
-          // Kept for any screen that wants to deep-link explicitly.
-          '/home': (context) => const HomeScreen(),
-          '/login': (context) => const LoginScreen(),
+      child: Consumer<ThemeController>(
+        builder: (context, themeCtrl, _) {
+          return MaterialApp(
+            title: AppConfig.appName,
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeCtrl.isDark ? ThemeMode.dark : ThemeMode.light,
+
+            // Always English for Material (TextField, buttons, etc.)
+            locale: const Locale('en'),
+            supportedLocales: const [Locale('en')],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+
+            home: const SplashScreen(),
+            routes: {
+              '/gate': (_) => const AuthGateScreen(),
+              '/home': (_) => const HomeScreen(),
+              '/login': (_) => const LoginScreen(),
+            },
+          );
         },
       ),
     );
@@ -105,20 +99,16 @@ class AuthGateScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
+    final auth = context.watch<AuthService>();
 
-    if (authService.isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: AppConfig.primaryColor),
-        ),
+    if (auth.isLoading) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (authService.isAuthenticated) {
-      return const HomeScreen();
-    }
-
+    if (auth.isAuthenticated) return const HomeScreen();
     return const LoginScreen();
   }
 }

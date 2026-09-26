@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 
-import '../config/app_config.dart';
+import '../config/app_theme.dart';
+import '../l10n/app_strings.dart';
 import '../models/category.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../utils/dialog_helper.dart';
 import 'scanner_screen.dart';
 
 class AddProductScreen extends StatefulWidget {
@@ -115,10 +116,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoadingData = false);
-      Fluttertoast.showToast(
-        msg: 'Failed to load data: $e',
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
+      DialogHelper.showErrorDialog(
+        context,
+        title: AppLang.error(context),
+        message:
+        '${AppLang.t(context, 'Failed to load data', 'Imeshindwa kupakia taarifa')}: $e',
       );
     }
   }
@@ -142,11 +144,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
   void _addIdentifier() {
     final value = _identifierController.text.trim();
     if (value.isEmpty) {
-      Fluttertoast.showToast(msg: 'Please enter an identifier');
+      DialogHelper.showWarningDialog(
+        context,
+        title: AppLang.notice(context),
+        message: AppLang.t(
+          context,
+          'Please enter an identifier',
+          'Tafadhali weka kitambulisho',
+        ),
+      );
       return;
     }
     if (_identifiers.contains(value)) {
-      Fluttertoast.showToast(msg: 'Identifier already exists');
+      DialogHelper.showWarningDialog(
+        context,
+        title: AppLang.notice(context),
+        message: AppLang.t(
+          context,
+          'Identifier already exists',
+          'Kitambulisho tayari kipo',
+        ),
+      );
       return;
     }
     setState(() {
@@ -174,10 +192,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
           }
         }
       });
-      Fluttertoast.showToast(
-        msg: 'Added ${results.length} identifier(s)',
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
+      if (!mounted) return;
+      DialogHelper.showSuccessDialog(
+        context,
+        title: AppLang.success(context),
+        message: AppLang.t(
+          context,
+          'Added ${results.length} identifier(s)',
+          'Vitambulisho ${results.length} vimeongezwa',
+        ),
       );
     }
   }
@@ -194,47 +217,59 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_identifiers.isEmpty) {
-      Fluttertoast.showToast(
-        msg: 'Please add at least one identifier',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        title: AppLang.notice(context),
+        message: AppLang.t(
+          context,
+          'Please add at least one identifier',
+          'Tafadhali ongeza kitambulisho kimoja',
+        ),
       );
       return;
     }
 
     if (!_isAdminOrManager && _selectedShopId == null) {
-      Fluttertoast.showToast(
-        msg: 'Please select a shop',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        title: AppLang.notice(context),
+        message: AppLang.selectShop(context),
       );
       return;
     }
 
     if (_selectedCategoryId == null || _selectedCategoryId!.isEmpty) {
-      Fluttertoast.showToast(
-        msg: 'Please select a category',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        title: AppLang.notice(context),
+        message: AppLang.selectCategory(context),
       );
       return;
     }
 
     if (_selectedSku == null || _selectedSku!.isEmpty) {
-      Fluttertoast.showToast(
-        msg: 'Please select a SKU',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        title: AppLang.notice(context),
+        message: AppLang.t(
+          context,
+          'Please select a SKU',
+          'Tafadhali chagua SKU',
+        ),
       );
       return;
     }
 
     final buyingPrice = double.tryParse(_buyingPriceController.text.trim());
     if (buyingPrice == null || buyingPrice < 0) {
-      Fluttertoast.showToast(
-        msg: 'Please enter a valid buying price',
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+      DialogHelper.showWarningDialog(
+        context,
+        title: AppLang.notice(context),
+        message: AppLang.t(
+          context,
+          'Please enter a valid buying price',
+          'Tafadhali weka bei sahihi ya kununua',
+        ),
       );
       return;
     }
@@ -262,25 +297,33 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       if (!mounted) return;
 
-      Fluttertoast.showToast(
-        msg: '${created.length} product(s) created for SKU "$_selectedSku"',
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
-      );
+      final createdSku = _selectedSku;
 
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context, true);
-      } else {
-        setState(() {
-          _identifiers.clear();
-          _buyingPriceController.clear();
-          _cashSellingPriceController.clear();
-          _selectedSku = null;
-          _selectedCategoryId = null;
-          _skuOptions = [];
-          if (!_isShopDisabled) _selectedShopId = null;
-        });
-      }
+      DialogHelper.showSuccessDialog(
+        context,
+        title: AppLang.success(context),
+        message: AppLang.t(
+          context,
+          '${created.length} product(s) created for SKU "$createdSku"',
+          'Bidhaa ${created.length} zimeundwa kwa SKU "$createdSku"',
+        ),
+        onConfirm: () {
+          if (!mounted) return;
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context, true);
+          } else {
+            setState(() {
+              _identifiers.clear();
+              _buyingPriceController.clear();
+              _cashSellingPriceController.clear();
+              _selectedSku = null;
+              _selectedCategoryId = null;
+              _skuOptions = [];
+              if (!_isShopDisabled) _selectedShopId = null;
+            });
+          }
+        },
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -300,11 +343,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
         }
       }
 
-      Fluttertoast.showToast(
-        msg: errorMsg,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        toastLength: Toast.LENGTH_LONG,
+      DialogHelper.showErrorDialog(
+        context,
+        title: AppLang.error(context),
+        message: errorMsg,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -312,14 +354,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   Widget _section({required String title, required Widget child}) {
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,17 +373,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 width: 4,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: AppConfig.primaryColor,
+                  color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 14,
+                style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151),
                 ),
               ),
             ],
@@ -357,47 +398,26 @@ class _AddProductScreenState extends State<AddProductScreen> {
     String? hint,
     String? prefixText,
   }) {
+    // Relies on the app-wide InputDecorationTheme (AppTheme) for
+    // border/fill/focus styling instead of overriding it here.
     return InputDecoration(
       labelText: label,
       hintText: hint,
       prefixText: prefixText,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide:
-        const BorderSide(color: AppConfig.primaryColor, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.red),
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final media = MediaQuery.of(context);
     final isNarrow = media.size.width < 380;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: widget.isEmbedded
           ? null
           : AppBar(
-        title: const Text('Add Product'),
-        backgroundColor: AppConfig.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: Text(AppLang.addProduct(context)),
       ),
       body: _isLoadingData
           ? const Center(child: CircularProgressIndicator())
@@ -421,7 +441,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 children: [
                   // BASIC INFORMATION
                   _section(
-                    title: 'Basic Information',
+                    title: AppLang.basicInfo(context),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -429,18 +449,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           value: _selectedShopId,
                           isExpanded: true,
                           decoration: _inputDecoration(
-                            label:
-                            _isShopRequired ? 'Shop *' : 'Shop',
+                            label: _isShopRequired
+                                ? AppLang.shopRequired(context)
+                                : AppLang.shop(context),
                           ),
                           items: [
                             if (!_isShopRequired && !_isShopDisabled)
-                              const DropdownMenuItem<String>(
+                              DropdownMenuItem<String>(
                                 value: null,
-                                child: Text('Select shop'),
+                                child: Text(AppLang.selectShop(context)),
                               ),
                             ..._shopOptions.map((shop) {
-                              final id =
-                              shop['shop_id']?.toString();
+                              final id = shop['shop_id']?.toString();
                               final name = shop['name'] ?? 'Shop';
                               final loc = shop['location'] ?? '';
                               return DropdownMenuItem<String>(
@@ -462,30 +482,28 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           validator: (v) {
                             if (_isShopRequired &&
                                 (v == null || v.isEmpty)) {
-                              return 'Please select a shop';
+                              return AppLang.selectShop(context);
                             }
                             return null;
                           },
                         ),
                         if (_isShopDisabled)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
                             child: Text(
-                              'Auto-selected from your assigned shop.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.green,
+                              AppLang.autoSelectedShop(context),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppTheme.success,
                               ),
                             ),
                           ),
                         if (_isShopRequired)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
                             child: Text(
-                              'You manage multiple shops – please select one.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange,
+                              AppLang.multiShopHint(context),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppTheme.warning,
                               ),
                             ),
                           ),
@@ -494,7 +512,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           value: _selectedCategoryId,
                           isExpanded: true,
                           decoration: _inputDecoration(
-                            label: 'Category *',
+                            label: AppLang.category(context),
                           ),
                           items: _categories.map((c) {
                             return DropdownMenuItem(
@@ -507,9 +525,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             );
                           }).toList(),
                           onChanged: _onCategoryChanged,
-                          validator: (v) =>
-                          (v == null || v.isEmpty)
-                              ? 'Please select a category'
+                          validator: (v) => (v == null || v.isEmpty)
+                              ? AppLang.selectCategory(context)
                               : null,
                         ),
                       ],
@@ -518,51 +535,49 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                   // SKU
                   _section(
-                    title: 'SKU',
+                    title: AppLang.sku(context),
                     child: _selectedCategoryId == null
-                        ? const Text(
-                      'Please select a category first',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.orange,
+                        ? Text(
+                      AppLang.selectCategoryFirst(context),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.warning,
                       ),
                     )
                         : _skuOptions.isEmpty
-                        ? const Text(
-                      'No SKUs for this category',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.orange,
+                        ? Text(
+                      AppLang.noSkus(context),
+                      style:
+                      theme.textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.warning,
                       ),
                     )
                         : DropdownButtonFormField<String>(
                       value: _selectedSku,
                       isExpanded: true,
                       decoration: _inputDecoration(
-                        label: 'Select SKU *',
+                        label: AppLang.selectSku(context),
                       ),
                       items: _skuOptions.map((s) {
                         return DropdownMenuItem(
                           value: s,
                           child: Text(
                             s,
-                            overflow:
-                            TextOverflow.ellipsis,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         );
                       }).toList(),
-                      onChanged: (v) => setState(
-                              () => _selectedSku = v),
+                      onChanged: (v) =>
+                          setState(() => _selectedSku = v),
                       validator: (v) =>
                       (v == null || v.isEmpty)
-                          ? 'Please select a SKU'
+                          ? AppLang.selectSku(context)
                           : null,
                     ),
                   ),
 
                   // PRICING
                   _section(
-                    title: 'Pricing',
+                    title: AppLang.pricing(context),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         if (constraints.maxWidth < 320) {
@@ -571,22 +586,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               TextFormField(
                                 controller: _buyingPriceController,
                                 keyboardType: const TextInputType
-                                    .numberWithOptions(
-                                    decimal: true),
+                                    .numberWithOptions(decimal: true),
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
                                       RegExp(r'[\d.]')),
                                 ],
                                 decoration: _inputDecoration(
-                                  label: 'Buying Price *',
+                                  label: AppLang.buyingPrice(context),
                                   prefixText: 'TSh ',
                                 ),
                                 validator: (v) {
                                   if (v == null || v.isEmpty) {
-                                    return 'Required';
+                                    return AppLang.t(
+                                        context, 'Required', 'Inahitajika');
                                   }
                                   if (double.tryParse(v) == null) {
-                                    return 'Invalid';
+                                    return AppLang.t(
+                                        context, 'Invalid', 'Si sahihi');
                                   }
                                   return null;
                                 },
@@ -596,14 +612,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 controller:
                                 _cashSellingPriceController,
                                 keyboardType: const TextInputType
-                                    .numberWithOptions(
-                                    decimal: true),
+                                    .numberWithOptions(decimal: true),
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
                                       RegExp(r'[\d.]')),
                                 ],
                                 decoration: _inputDecoration(
-                                  label: 'Cash Selling Price',
+                                  label:
+                                  AppLang.cashSellingPrice(context),
                                   prefixText: 'TSh ',
                                 ),
                               ),
@@ -611,29 +627,29 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           );
                         }
                         return Row(
-                          crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: TextFormField(
                                 controller: _buyingPriceController,
                                 keyboardType: const TextInputType
-                                    .numberWithOptions(
-                                    decimal: true),
+                                    .numberWithOptions(decimal: true),
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
                                       RegExp(r'[\d.]')),
                                 ],
                                 decoration: _inputDecoration(
-                                  label: 'Buying Price *',
+                                  label: AppLang.buyingPrice(context),
                                   prefixText: 'TSh ',
                                 ),
                                 validator: (v) {
                                   if (v == null || v.isEmpty) {
-                                    return 'Required';
+                                    return AppLang.t(
+                                        context, 'Required', 'Inahitajika');
                                   }
                                   if (double.tryParse(v) == null) {
-                                    return 'Invalid';
+                                    return AppLang.t(
+                                        context, 'Invalid', 'Si sahihi');
                                   }
                                   return null;
                                 },
@@ -645,14 +661,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 controller:
                                 _cashSellingPriceController,
                                 keyboardType: const TextInputType
-                                    .numberWithOptions(
-                                    decimal: true),
+                                    .numberWithOptions(decimal: true),
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
                                       RegExp(r'[\d.]')),
                                 ],
                                 decoration: _inputDecoration(
-                                  label: 'Cash Selling Price',
+                                  label:
+                                  AppLang.cashSellingPrice(context),
                                   prefixText: 'TSh ',
                                 ),
                               ),
@@ -665,7 +681,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                   // IDENTIFIER LIST
                   _section(
-                    title: 'Identifier List',
+                    title: AppLang.identifierList(context),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -673,11 +689,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           TextFormField(
                             controller: _identifierController,
                             decoration: _inputDecoration(
-                              hint:
-                              'Enter identifier (IMEI, serial, etc.)',
+                              hint: AppLang.enterIdentifier(context),
                             ),
-                            onFieldSubmitted: (_) =>
-                                _addIdentifier(),
+                            onFieldSubmitted: (_) => _addIdentifier(),
                           ),
                           const SizedBox(height: 10),
                           Row(
@@ -685,41 +699,20 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               Expanded(
                                 child: ElevatedButton(
                                   onPressed: _addIdentifier,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                    AppConfig.primaryColor,
-                                    foregroundColor: Colors.white,
-                                    padding:
-                                    const EdgeInsets.symmetric(
-                                        vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                      BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: const Text('Add'),
+                                  child:
+                                  Text(AppLang.addLabel(context)),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: ElevatedButton.icon(
+                                child: OutlinedButton.icon(
                                   onPressed: _openScanner,
                                   icon: const Icon(
                                     Icons.qr_code_scanner,
                                     size: 18,
                                   ),
-                                  label: const Text('Scan'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                    padding:
-                                    const EdgeInsets.symmetric(
-                                        vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                      BorderRadius.circular(10),
-                                    ),
-                                  ),
+                                  label:
+                                  Text(AppLang.scan(context)),
                                 ),
                               ),
                             ],
@@ -733,8 +726,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 child: TextFormField(
                                   controller: _identifierController,
                                   decoration: _inputDecoration(
-                                    hint:
-                                    'Enter identifier (IMEI, serial, etc.)',
+                                    hint: AppLang.enterIdentifier(
+                                        context),
                                   ),
                                   onFieldSubmitted: (_) =>
                                       _addIdentifier(),
@@ -746,41 +739,38 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 child: ElevatedButton(
                                   onPressed: _addIdentifier,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                    AppConfig.primaryColor,
-                                    foregroundColor: Colors.white,
-                                    padding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                      BorderRadius.circular(10),
+                                    // Overrides the app-wide
+                                    // full-width (Size.fromHeight)
+                                    // button default: a Row child
+                                    // gets unbounded max width, so
+                                    // an infinite minimumSize here
+                                    // crashes layout.
+                                    minimumSize: const Size(64, 48),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
                                     ),
                                   ),
-                                  child: const Text('Add'),
+                                  child:
+                                  Text(AppLang.addLabel(context)),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               SizedBox(
                                 height: 48,
-                                child: ElevatedButton.icon(
+                                child: OutlinedButton.icon(
                                   onPressed: _openScanner,
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(64, 48),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                  ),
                                   icon: const Icon(
                                     Icons.qr_code_scanner,
                                     size: 18,
                                   ),
-                                  label: const Text('Scan'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                    padding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                      BorderRadius.circular(10),
-                                    ),
-                                  ),
+                                  label:
+                                  Text(AppLang.scan(context)),
                                 ),
                               ),
                             ],
@@ -791,10 +781,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           Row(
                             children: [
                               Text(
-                                '${_identifiers.length} identifier(s)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
+                                AppLang.identifiersCount(
+                                    context, _identifiers.length),
+                                style:
+                                theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.6),
                                 ),
                               ),
                               const Spacer(),
@@ -804,77 +796,67 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                   padding: EdgeInsets.zero,
                                   minimumSize: Size.zero,
                                   tapTargetSize:
-                                  MaterialTapTargetSize
-                                      .shrinkWrap,
+                                  MaterialTapTargetSize.shrinkWrap,
+                                  foregroundColor: theme.colorScheme.error,
                                 ),
-                                child: const Text(
-                                  'Clear All',
-                                  style: TextStyle(
-                                    color: Colors.red,
-                                    fontSize: 13,
-                                  ),
-                                ),
+                                child: Text(AppLang.clearAll(context)),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          ...List.generate(_identifiers.length,
-                                  (i) {
-                                return Container(
-                                  margin:
-                                  const EdgeInsets.only(bottom: 6),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius:
-                                    BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.grey.shade200,
+                          ...List.generate(_identifiers.length, (i) {
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: theme.colorScheme.outlineVariant,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '${i + 1}.',
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(
+                                      color: theme.colorScheme.onSurface
+                                          .withOpacity(0.5),
                                     ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        '${i + 1}.',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade500,
-                                          fontSize: 13,
-                                        ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _identifiers[i],
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                        fontFamily: 'monospace',
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _identifiers[i],
-                                          style: const TextStyle(
-                                            fontFamily: 'monospace',
-                                            fontSize: 14,
-                                          ),
-                                          overflow:
-                                          TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          size: 20,
-                                          color: Colors.red,
-                                        ),
-                                        onPressed: () =>
-                                            _removeIdentifier(i),
-                                        padding: EdgeInsets.zero,
-                                        constraints:
-                                        const BoxConstraints(
-                                          minWidth: 32,
-                                          minHeight: 32,
-                                        ),
-                                      ),
-                                    ],
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                );
-                              }),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.delete_outline,
+                                      size: 20,
+                                      color: theme.colorScheme.error,
+                                    ),
+                                    onPressed: () =>
+                                        _removeIdentifier(i),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
                         ],
                       ],
                     ),
@@ -887,32 +869,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed:
-                          _isLoading ? null : _handleSubmit,
+                          onPressed: _isLoading ? null : _handleSubmit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                            AppConfig.primaryColor,
-                            foregroundColor: Colors.white,
-                            minimumSize:
-                            const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                              BorderRadius.circular(10),
-                            ),
+                            minimumSize: const Size.fromHeight(50),
                           ),
                           child: _isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                             height: 22,
                             width: 22,
-                            child:
-                            CircularProgressIndicator(
-                              color: Colors.white,
+                            child: CircularProgressIndicator(
+                              color: theme.colorScheme.onPrimary,
                               strokeWidth: 2,
                             ),
                           )
-                              : const Text(
-                            'Create',
-                            style: TextStyle(
+                              : Text(
+                            AppLang.create(context),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -923,17 +895,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () =>
-                                Navigator.pop(context),
+                            onPressed: () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
-                              minimumSize:
-                              const Size.fromHeight(50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                BorderRadius.circular(10),
-                              ),
+                              minimumSize: const Size.fromHeight(50),
                             ),
-                            child: const Text('Cancel'),
+                            child: Text(AppLang.cancel(context)),
                           ),
                         ),
                       ],

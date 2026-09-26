@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 
-import '../config/app_config.dart';
+import '../config/app_theme.dart';
+import '../l10n/app_strings.dart';
+import '../main.dart';
 import '../services/auth_service.dart';
+import '../utils/dialog_helper.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,82 +31,176 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     setState(() => _errorMessage = null);
-
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-
-    final authService = context.read<AuthService>();
-    final error = await authService.login(
+    final error = await context.read<AuthService>().login(
       _emailController.text.trim(),
       _passwordController.text,
     );
-
     if (!mounted) return;
-
     setState(() {
       _isLoading = false;
       _errorMessage = error;
     });
-
-    // Optional: also show toast (dialog-style short message)
-    if (error != null) {
-      Fluttertoast.showToast(
-        msg: error,
-        backgroundColor: Colors.red.shade700,
-        textColor: Colors.white,
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final themeCtrl = context.watch<ThemeController>();
     final size = MediaQuery.of(context).size;
+    final isSw = themeCtrl.isSw;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 12),
+                // Theme + Language dropdown
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: AppLang.t(context, 'Theme', 'Mandhari'),
+                        onPressed: () => themeCtrl.toggleTheme(),
+                        icon: Icon(
+                          isDark
+                              ? Icons.light_mode_outlined
+                              : Icons.dark_mode_outlined,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      // Language dropdown
+                      PopupMenuButton<String>(
+                        tooltip: AppLang.t(context, 'Language', 'Lugha'),
+                        offset: const Offset(0, 40),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onSelected: (code) => themeCtrl.setLocale(code),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'en',
+                            child: Row(
+                              children: [
+                                const Text('🇬🇧', style: TextStyle(fontSize: 18)),
+                                const SizedBox(width: 10),
+                                const Text('English'),
+                                if (!isSw) ...[
+                                  const Spacer(),
+                                  const Icon(Icons.check,
+                                      size: 18, color: AppTheme.primary),
+                                ],
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'sw',
+                            child: Row(
+                              children: [
+                                const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                const SizedBox(width: 10),
+                                const Text('Kiswahili'),
+                                if (isSw) ...[
+                                  const Spacer(),
+                                  const Icon(Icons.check,
+                                      size: 18, color: AppTheme.primary),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppTheme.primary.withOpacity(0.4),
+                            ),
+                            color: AppTheme.primary.withOpacity(0.08),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                isSw ? '🇹🇿' : '🇬🇧',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isSw ? 'SW' : 'EN',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              const Icon(
+                                Icons.arrow_drop_down,
+                                size: 18,
+                                color: AppTheme.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Login image
                 Center(
                   child: Image.asset(
-                    'assets/images/homeimg.png',
-                    height: size.height * 0.28,
+                    'assets/images/app_img.png',
+                    height: size.height * 0.26,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => Icon(
                       Icons.inventory_2,
-                      size: 100,
-                      color: AppConfig.primaryColor.withOpacity(0.5),
+                      size: 96,
+                      color: AppTheme.primary.withOpacity(0.45),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Welcome Back',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppConfig.primaryColor,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Sign in to manage your products',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey.shade600,
                   ),
                 ),
                 const SizedBox(height: 20),
 
-                // Error banner
+                Text(
+                  AppLang.t(context, 'Welcome Back', 'Karibu Tena'),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  AppLang.t(
+                    context,
+                    'Sign in to manage your products',
+                    'Ingia kudhibiti bidhaa zako',
+                  ),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.greyText,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 if (_errorMessage != null) ...[
                   Container(
                     width: double.infinity,
@@ -113,21 +209,26 @@ class _LoginScreenState extends State<LoginScreen> {
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: AppTheme.error.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.shade200),
+                      border: Border.all(
+                        color: AppTheme.error.withOpacity(0.35),
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.error_outline,
-                            color: Colors.red.shade700, size: 22),
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppTheme.error,
+                          size: 22,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: TextStyle(
-                              color: Colors.red.shade800,
+                            style: const TextStyle(
+                              color: AppTheme.error,
                               fontSize: 14,
                               height: 1.35,
                             ),
@@ -135,8 +236,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         GestureDetector(
                           onTap: () => setState(() => _errorMessage = null),
-                          child: Icon(Icons.close,
-                              size: 18, color: Colors.red.shade400),
+                          child: Icon(
+                            Icons.close,
+                            size: 18,
+                            color: AppTheme.error.withOpacity(0.7),
+                          ),
                         ),
                       ],
                     ),
@@ -154,20 +258,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                   },
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                    labelText: AppLang.email(context),
                     prefixIcon: const Icon(Icons.email_outlined),
-                    hintText: 'Enter your email',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    hintText: AppLang.t(
+                      context,
+                      'Enter your email',
+                      'Weka barua pepe yako',
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return AppLang.t(
+                        context,
+                        'Please enter your email',
+                        'Tafadhali weka barua pepe',
+                      );
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) {
-                      return 'Please enter a valid email';
+                    if (!RegExp(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$')
+                        .hasMatch(v)) {
+                      return AppLang.t(
+                        context,
+                        'Please enter a valid email',
+                        'Weka barua pepe sahihi',
+                      );
                     }
                     return null;
                   },
@@ -185,11 +298,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                   },
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: AppLang.t(context, 'Password', 'Nenosiri'),
                     prefixIcon: const Icon(Icons.lock_outline),
-                    hintText: 'Enter your password',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    hintText: AppLang.t(
+                      context,
+                      'Enter your password',
+                      'Weka nenosiri lako',
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -197,21 +311,25 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
                       ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
+                      onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                      ),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return AppLang.t(
+                        context,
+                        'Please enter your password',
+                        'Tafadhali weka nenosiri',
+                      );
                     }
-                    // Matches backend's `password' => 'required|string|min:8'`
-                    // rule on both /register and /login — keeping these in
-                    // sync avoids a client-side pass followed by a
-                    // confusing 422 from the server.
-                    if (value.length < 8) {
-                      return 'Password must be at least 8 characters';
+                    if (v.length < 8) {
+                      return AppLang.t(
+                        context,
+                        'Password must be at least 8 characters',
+                        'Nenosiri liwe angalau herufi 8',
+                      );
                     }
                     return null;
                   },
@@ -222,16 +340,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      setState(() {
-                        _errorMessage = 'Forgot password is coming soon.';
-                      });
-                      Fluttertoast.showToast(
-                        msg: 'Forgot password is coming soon.',
-                        backgroundColor: Colors.orange,
-                        textColor: Colors.white,
+                      DialogHelper.showInfoDialog(
+                        context,
+                        title: AppLang.t(
+                          context,
+                          'Forgot Password',
+                          'Umesahau Nenosiri',
+                        ),
+                        message: AppLang.t(
+                          context,
+                          'Forgot password is coming soon.',
+                          'Umesahau nenosiri inakuja hivi karibuni.',
+                        ),
                       );
                     },
-                    child: const Text('Forgot Password?'),
+                    child: Text(
+                      AppLang.t(
+                        context,
+                        'Forgot Password?',
+                        'Umesahau Nenosiri?',
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -241,14 +370,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 54,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConfig.primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
                     child: _isLoading
                         ? const SizedBox(
                       height: 24,
@@ -258,9 +379,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         strokeWidth: 2,
                       ),
                     )
-                        : const Text(
-                      'Sign In',
-                      style: TextStyle(
+                        : Text(
+                      AppLang.t(context, 'Sign In', 'Ingia'),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -268,11 +389,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
+
                 Center(
                   child: Text(
-                    'Product Scanner v1.0.0',
+                    'Product Scanner v0.0.1',
                     style: TextStyle(
-                      color: Colors.grey.shade500,
+                      color: isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.greyText,
                       fontSize: 12,
                     ),
                   ),

@@ -13,9 +13,10 @@ class Assets {
 class $AssetsImagesGen {
   const $AssetsImagesGen();
 
-  final AssetGenImage appImg = const AssetGenImage('assets/images/app_img.png');
-  final AssetGenImage homeimgRemovebgPreview =
-      const AssetGenImage('assets/images/homeimg.png');
+  final AssetGenImage appIcon =
+      const AssetGenImage('assets/images/app_icon.png');
+  final AssetGenImage appImgRemovebgPreview =
+      const AssetGenImage('assets/images/app_img.png');
 }
 
 class $AssetsIconsGen {
