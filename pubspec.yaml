@@ -1,5 +1,5 @@
 name: scann_product
-description: "A product scanner and management application"
+description: "A product scanner and management application , help to scan your product with digital scanner"
 publish_to: 'none'
 version: 1.0.0+1
 
